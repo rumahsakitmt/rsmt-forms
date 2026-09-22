@@ -1,13 +1,18 @@
+import { requireAdmin } from "@/lib/session";
 import { FormFiller } from "@/components/forms/form-filler";
 import { getSubmission } from "@/lib/data/submissions";
 import type { FormAnswers } from "@/lib/forms/types";
 
-export default async function EditSubmissionPage({ params }: PageProps<"/submissions/[id]/edit">) {
+export default async function EditSubmissionPage({
+  params,
+}: PageProps<"/admin/submissions/[id]/edit">) {
+  await requireAdmin();
   const { id } = await params;
   const submission = await getSubmission(id, "edit");
 
   return (
     <FormFiller
+      admin
       draft={{
         id: submission.id,
         patient: {

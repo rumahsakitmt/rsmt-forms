@@ -2,20 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { IconLogout2 } from "@tabler/icons-react";
+import { SignOutIcon } from "@phosphor-icons/react";
 
 import { Button } from "@/components/ui/button";
+import { SidebarMenuButton } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 
-export function LogoutButton() {
+export function LogoutButton({ standalone = false }: { standalone?: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
+  const Control = standalone ? Button : SidebarMenuButton;
+
   return (
-    <Button
+    <Control
       type="button"
-      className="nav-link nav-link-button h-11 justify-start px-3 text-xs text-white/70 hover:bg-white/7 hover:text-white"
-      variant="ghost"
       disabled={pending}
       onClick={async () => {
         setPending(true);
@@ -24,8 +25,8 @@ export function LogoutButton() {
         router.refresh();
       }}
     >
-      <IconLogout2 size={19} />
+      <SignOutIcon data-icon="inline-start" />
       <span>{pending ? "Keluar…" : "Keluar"}</span>
-    </Button>
+    </Control>
   );
 }

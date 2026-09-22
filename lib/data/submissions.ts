@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { parseFormSchema } from "@/lib/forms/validation";
-import { requireStaff } from "@/lib/session";
+import { requireAdmin, requireStaff } from "@/lib/session";
 
 export type SubmissionFilters = {
   query?: string;
@@ -15,7 +15,7 @@ export type SubmissionFilters = {
 };
 
 export async function getSubmissions(filters: SubmissionFilters = {}) {
-  await requireStaff();
+  await requireAdmin();
 
   const createdAt = {
     ...(filters.from ? { gte: new Date(`${filters.from}T00:00:00`) } : {}),
@@ -31,7 +31,12 @@ export async function getSubmissions(filters: SubmissionFilters = {}) {
         ? {
             OR: [
               { patientName: { contains: filters.query, mode: "insensitive" } },
-              { medicalRecordNumber: { contains: filters.query, mode: "insensitive" } },
+              {
+                medicalRecordNumber: {
+                  contains: filters.query,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
@@ -57,8 +62,11 @@ export async function getSubmissions(filters: SubmissionFilters = {}) {
   });
 }
 
-export async function getSubmission(id: string, mode: "view" | "edit" = "view") {
-  const staff = await requireStaff();
+export async function getSubmission(
+  id: string,
+  mode: "view" | "edit" = "view",
+) {
+  const staff = await (mode === "edit" ? requireStaff() : requireAdmin());
   const submission = await db.submission.findUnique({
     where: { id },
     select: {
@@ -79,7 +87,9 @@ export async function getSubmission(id: string, mode: "view" | "edit" = "view") 
           id: true,
           version: true,
           schemaJson: true,
-          form: { select: { id: true, slug: true, title: true, category: true } },
+          form: {
+            select: { id: true, slug: true, title: true, category: true },
+          },
         },
       },
     },
@@ -104,7 +114,7 @@ export async function recordSubmissionAccess(
   submissionId: string,
   action: "VIEW" | "PRINT",
 ) {
-  const staff = await requireStaff();
+  const staff = await requireAdmin();
   await db.auditEvent.create({
     data: {
       actorId: staff.id,
@@ -116,7 +126,7 @@ export async function recordSubmissionAccess(
 }
 
 export async function getSubmissionStats() {
-  await requireStaff();
+  await requireAdmin();
   const [drafts, submitted, today] = await Promise.all([
     db.submission.count({ where: { status: "DRAFT" } }),
     db.submission.count({ where: { status: "SUBMITTED" } }),

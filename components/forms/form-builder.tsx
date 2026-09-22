@@ -1,31 +1,39 @@
 "use client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  IconAlignLeft,
-  IconArrowDown,
-  IconArrowLeft,
-  IconArrowUp,
-  IconCheck,
-  IconCheckbox,
-  IconCircleDot,
-  IconCopy,
-  IconDeviceFloppy,
-  IconGripVertical,
-  IconGitBranch,
-  IconLayoutRows,
-  IconPlus,
-  IconRocket,
-  IconSettings,
-  IconTrash,
-  IconTypography,
-} from "@tabler/icons-react";
+  TextAlignLeftIcon,
+  ArrowDownIcon,
+  ArrowLeftIcon,
+  ArrowUpIcon,
+  CheckIcon,
+  CheckSquareIcon,
+  RadioButtonIcon,
+  CopyIcon,
+  FloppyDiskIcon,
+  DotsSixVerticalIcon,
+  GitBranchIcon,
+  RowsIcon,
+  PlusIcon,
+  RocketIcon,
+  GearIcon,
+  TrashIcon,
+  TextTIcon,
+} from "@phosphor-icons/react";
 
 import { createFormAction } from "@/app/actions/forms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { FormField, FormSchema } from "@/lib/forms/types";
@@ -78,12 +86,32 @@ const palette: Array<{
   type: AddableFieldType;
   title: string;
   description: string;
-  icon: typeof IconTypography;
+  icon: typeof TextTIcon;
 }> = [
-  { type: "text", title: "Jawaban singkat", description: "Nama, kode, atau satu baris", icon: IconTypography },
-  { type: "textarea", title: "Paragraf", description: "Catatan atau uraian panjang", icon: IconAlignLeft },
-  { type: "singleChoice", title: "Pilihan tunggal", description: "Pilih satu dari beberapa opsi", icon: IconCircleDot },
-  { type: "multiChoice", title: "Kotak centang", description: "Pilih satu atau beberapa opsi", icon: IconCheckbox },
+  {
+    type: "text",
+    title: "Jawaban singkat",
+    description: "Nama, kode, atau satu baris",
+    icon: TextTIcon,
+  },
+  {
+    type: "textarea",
+    title: "Paragraf",
+    description: "Catatan atau uraian panjang",
+    icon: TextAlignLeftIcon,
+  },
+  {
+    type: "singleChoice",
+    title: "Pilihan tunggal",
+    description: "Pilih satu dari beberapa opsi",
+    icon: RadioButtonIcon,
+  },
+  {
+    type: "multiChoice",
+    title: "Kotak centang",
+    description: "Pilih satu atau beberapa opsi",
+    icon: CheckSquareIcon,
+  },
 ];
 
 function uniqueId(prefix: string) {
@@ -113,7 +141,10 @@ function createField(type: AddableFieldType, number: number): FormField {
 }
 
 function countFields(schema: FormSchema) {
-  return schema.sections.reduce((total, section) => total + section.fields.length, 0);
+  return schema.sections.reduce(
+    (total, section) => total + section.fields.length,
+    0,
+  );
 }
 
 function fieldTypeLabel(type: FormField["type"]) {
@@ -129,7 +160,9 @@ function fieldTypeLabel(type: FormField["type"]) {
 
 function firstVisibilityRule(field: FormField) {
   if (!field.visibleWhen) return null;
-  return Array.isArray(field.visibleWhen) ? field.visibleWhen[0] ?? null : field.visibleWhen;
+  return Array.isArray(field.visibleWhen)
+    ? (field.visibleWhen[0] ?? null)
+    : field.visibleWhen;
 }
 
 export function FormBuilder() {
@@ -157,12 +190,19 @@ export function FormBuilder() {
 
   const selectedSection = useMemo(() => {
     if (selection.kind === "form") return null;
-    return builder.schema.sections.find((section) => section.id === selection.sectionId) ?? null;
+    return (
+      builder.schema.sections.find(
+        (section) => section.id === selection.sectionId,
+      ) ?? null
+    );
   }, [builder.schema.sections, selection]);
 
   const selectedField = useMemo(() => {
     if (selection.kind !== "field") return null;
-    return selectedSection?.fields.find((field) => field.id === selection.fieldId) ?? null;
+    return (
+      selectedSection?.fields.find((field) => field.id === selection.fieldId) ??
+      null
+    );
   }, [selectedSection, selection]);
 
   const allFields = useMemo(
@@ -175,19 +215,34 @@ export function FormBuilder() {
   );
   const conditionalSources = useMemo(() => {
     if (!selectedField) return [];
-    const selectedIndex = allFields.findIndex((field) => field.id === selectedField.id);
-    return allFields.slice(0, selectedIndex).filter(
-      (field) => field.type === "singleChoice" || field.type === "multiChoice",
+    const selectedIndex = allFields.findIndex(
+      (field) => field.id === selectedField.id,
     );
+    return allFields
+      .slice(0, selectedIndex)
+      .filter(
+        (field) =>
+          field.type === "singleChoice" || field.type === "multiChoice",
+      );
   }, [allFields, selectedField]);
-  const selectedRule = selectedField ? firstVisibilityRule(selectedField) : null;
-  const selectedRuleSource = selectedRule ? fieldMap.get(selectedRule.fieldId) : null;
+  const selectedRule = selectedField
+    ? firstVisibilityRule(selectedField)
+    : null;
+  const selectedRuleSource = selectedRule
+    ? fieldMap.get(selectedRule.fieldId)
+    : null;
 
   function updateSchema(patch: Partial<FormSchema>) {
-    setBuilder((current) => ({ ...current, schema: { ...current.schema, ...patch } }));
+    setBuilder((current) => ({
+      ...current,
+      schema: { ...current.schema, ...patch },
+    }));
   }
 
-  function updateSection(sectionId: string, patch: Partial<FormSchema["sections"][number]>) {
+  function updateSection(
+    sectionId: string,
+    patch: Partial<FormSchema["sections"][number]>,
+  ) {
     setBuilder((current) => ({
       ...current,
       schema: {
@@ -199,7 +254,11 @@ export function FormBuilder() {
     }));
   }
 
-  function updateField(sectionId: string, fieldId: string, patch: Partial<FormField>) {
+  function updateField(
+    sectionId: string,
+    fieldId: string,
+    patch: Partial<FormField>,
+  ) {
     setBuilder((current) => ({
       ...current,
       schema: {
@@ -209,7 +268,9 @@ export function FormBuilder() {
             ? {
                 ...section,
                 fields: section.fields.map((field) =>
-                  field.id === fieldId ? ({ ...field, ...patch } as FormField) : field,
+                  field.id === fieldId
+                    ? ({ ...field, ...patch } as FormField)
+                    : field,
                 ),
               }
             : section,
@@ -222,7 +283,9 @@ export function FormBuilder() {
     const target =
       selection.kind === "form"
         ? builder.schema.sections.at(-1)
-        : builder.schema.sections.find((section) => section.id === selection.sectionId);
+        : builder.schema.sections.find(
+            (section) => section.id === selection.sectionId,
+          );
     if (!target) return;
     const field = createField(type, countFields(builder.schema) + 1);
     updateSection(target.id, { fields: [...target.fields, field] });
@@ -239,24 +302,33 @@ export function FormBuilder() {
       description: "Jelaskan tujuan bagian ini.",
       fields: [createField("text", countFields(builder.schema) + 1)],
     };
-    updateSchema({ layout: "sectioned", sections: [...builder.schema.sections, section] });
+    updateSchema({
+      layout: "sectioned",
+      sections: [...builder.schema.sections, section],
+    });
     setSelection({ kind: "section", sectionId: section.id });
   }
 
   function setLayout(layout: "sectioned" | "continuous") {
     if (layout === "continuous") {
       const [first, ...rest] = builder.schema.sections;
-      const mergedFields = [first, ...rest].flatMap((section) => section.fields);
+      const mergedFields = [first, ...rest].flatMap(
+        (section) => section.fields,
+      );
       updateSchema({
         layout,
-        sections: [{
-          ...first,
-          id: first?.id ?? uniqueId("section"),
-          eyebrow: undefined,
-          title: "Pertanyaan",
-          description: undefined,
-          fields: mergedFields.length ? mergedFields : [createField("text", 1)],
-        }],
+        sections: [
+          {
+            ...first,
+            id: first?.id ?? uniqueId("section"),
+            eyebrow: undefined,
+            title: "Pertanyaan",
+            description: undefined,
+            fields: mergedFields.length
+              ? mergedFields
+              : [createField("text", 1)],
+          },
+        ],
       });
       setSelection({ kind: "form" });
       setNotice("Bagian digabung menjadi satu alur pertanyaan.");
@@ -269,22 +341,35 @@ export function FormBuilder() {
   function removeSection(sectionId: string) {
     if (builder.schema.sections.length === 1) {
       setLayout("continuous");
-      setNotice("Judul bagian dihapus. Formulir kini menggunakan alur kontinu.");
+      setNotice(
+        "Judul bagian dihapus. Formulir kini menggunakan alur kontinu.",
+      );
       return;
     }
-    const deleted = builder.schema.sections.find((section) => section.id === sectionId);
-    const deletedFieldIds = new Set(deleted?.fields.map((field) => field.id) ?? []);
+    const deleted = builder.schema.sections.find(
+      (section) => section.id === sectionId,
+    );
+    const deletedFieldIds = new Set(
+      deleted?.fields.map((field) => field.id) ?? [],
+    );
     const sections = builder.schema.sections
       .filter((section) => section.id !== sectionId)
       .map((section) => ({
         ...section,
         fields: section.fields.map((field) => {
           const rules = field.visibleWhen
-            ? (Array.isArray(field.visibleWhen) ? field.visibleWhen : [field.visibleWhen])
+            ? Array.isArray(field.visibleWhen)
+              ? field.visibleWhen
+              : [field.visibleWhen]
             : [];
-          const remaining = rules.filter((rule) => !deletedFieldIds.has(rule.fieldId));
+          const remaining = rules.filter(
+            (rule) => !deletedFieldIds.has(rule.fieldId),
+          );
           if (remaining.length === rules.length) return field;
-          return { ...field, visibleWhen: remaining.length ? remaining : undefined } as FormField;
+          return {
+            ...field,
+            visibleWhen: remaining.length ? remaining : undefined,
+          } as FormField;
         }),
       }));
     updateSchema({ sections });
@@ -293,7 +378,9 @@ export function FormBuilder() {
   }
 
   function removeField(sectionId: string, fieldId: string) {
-    const section = builder.schema.sections.find((item) => item.id === sectionId);
+    const section = builder.schema.sections.find(
+      (item) => item.id === sectionId,
+    );
     if (!section || section.fields.length === 1) {
       setNotice("Setiap bagian harus memiliki minimal satu pertanyaan.");
       return;
@@ -308,9 +395,13 @@ export function FormBuilder() {
             .filter((field) => field.id !== fieldId)
             .map((field) => {
               const rules = field.visibleWhen
-                ? (Array.isArray(field.visibleWhen) ? field.visibleWhen : [field.visibleWhen])
+                ? Array.isArray(field.visibleWhen)
+                  ? field.visibleWhen
+                  : [field.visibleWhen]
                 : [];
-              const remaining = rules.filter((rule) => rule.fieldId !== fieldId);
+              const remaining = rules.filter(
+                (rule) => rule.fieldId !== fieldId,
+              );
               if (remaining.length === rules.length) return field;
               return {
                 ...field,
@@ -324,10 +415,16 @@ export function FormBuilder() {
   }
 
   function duplicateField(sectionId: string, fieldId: string) {
-    const section = builder.schema.sections.find((item) => item.id === sectionId);
+    const section = builder.schema.sections.find(
+      (item) => item.id === sectionId,
+    );
     const source = section?.fields.find((field) => field.id === fieldId);
     if (!section || !source) return;
-    const copy = { ...source, id: uniqueId("field"), label: `${source.label} (salinan)` };
+    const copy = {
+      ...source,
+      id: uniqueId("field"),
+      label: `${source.label} (salinan)`,
+    };
     const index = section.fields.findIndex((field) => field.id === fieldId);
     const fields = [...section.fields];
     fields.splice(index + 1, 0, copy);
@@ -336,7 +433,9 @@ export function FormBuilder() {
   }
 
   function moveField(sectionId: string, fieldId: string, direction: -1 | 1) {
-    const section = builder.schema.sections.find((item) => item.id === sectionId);
+    const section = builder.schema.sections.find(
+      (item) => item.id === sectionId,
+    );
     if (!section) return;
     const from = section.fields.findIndex((field) => field.id === fieldId);
     const to = from + direction;
@@ -346,15 +445,21 @@ export function FormBuilder() {
     const orderedFields = builder.schema.sections.flatMap((item) =>
       item.id === sectionId ? fields : item.fields,
     );
-    const order = new Map(orderedFields.map((field, index) => [field.id, index]));
+    const order = new Map(
+      orderedFields.map((field, index) => [field.id, index]),
+    );
     const createsBackwardCondition = orderedFields.some((field, index) => {
       const rules = field.visibleWhen
-        ? (Array.isArray(field.visibleWhen) ? field.visibleWhen : [field.visibleWhen])
+        ? Array.isArray(field.visibleWhen)
+          ? field.visibleWhen
+          : [field.visibleWhen]
         : [];
       return rules.some((rule) => (order.get(rule.fieldId) ?? -1) >= index);
     });
     if (createsBackwardCondition) {
-      setNotice("Pertanyaan pemicu harus tetap berada sebelum pertanyaan kondisional.");
+      setNotice(
+        "Pertanyaan pemicu harus tetap berada sebelum pertanyaan kondisional.",
+      );
       return;
     }
     updateSection(sectionId, { fields });
@@ -362,7 +467,11 @@ export function FormBuilder() {
 
   function removeChoiceOption(fieldId: string, optionIndex: number) {
     const source = fieldMap.get(fieldId);
-    if (!source || (source.type !== "singleChoice" && source.type !== "multiChoice")) return;
+    if (
+      !source ||
+      (source.type !== "singleChoice" && source.type !== "multiChoice")
+    )
+      return;
     const removedValue = source.options[optionIndex]?.value;
     if (!removedValue || source.options.length <= 1) return;
 
@@ -373,15 +482,31 @@ export function FormBuilder() {
         sections: current.schema.sections.map((section) => ({
           ...section,
           fields: section.fields.map((field) => {
-            if (field.id === fieldId && (field.type === "singleChoice" || field.type === "multiChoice")) {
-              return { ...field, options: field.options.filter((_, index) => index !== optionIndex) };
+            if (
+              field.id === fieldId &&
+              (field.type === "singleChoice" || field.type === "multiChoice")
+            ) {
+              return {
+                ...field,
+                options: field.options.filter(
+                  (_, index) => index !== optionIndex,
+                ),
+              };
             }
             const rules = field.visibleWhen
-              ? (Array.isArray(field.visibleWhen) ? field.visibleWhen : [field.visibleWhen])
+              ? Array.isArray(field.visibleWhen)
+                ? field.visibleWhen
+                : [field.visibleWhen]
               : [];
-            const remaining = rules.filter((rule) => !(rule.fieldId === fieldId && rule.value === removedValue));
+            const remaining = rules.filter(
+              (rule) =>
+                !(rule.fieldId === fieldId && rule.value === removedValue),
+            );
             if (remaining.length === rules.length) return field;
-            return { ...field, visibleWhen: remaining.length ? remaining : undefined } as FormField;
+            return {
+              ...field,
+              visibleWhen: remaining.length ? remaining : undefined,
+            } as FormField;
           }),
         })),
       },
@@ -406,109 +531,283 @@ export function FormBuilder() {
   }
 
   return (
-    <div className="builder-page">
-      <header className="builder-topbar">
-        <div className="builder-title-group">
-          <button aria-label="Kembali ke formulir" className="builder-back" onClick={() => router.push("/")} type="button">
-            <IconArrowLeft size={18} />
-          </button>
+    <div className="min-w-0 bg-muted/30">
+      <header className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b bg-background p-4">
+        <div className="flex min-w-0 items-center gap-3 [&>div]:flex [&>div]:flex-col [&>div]:gap-1">
+          <Button
+            variant="outline"
+            aria-label="Kembali ke administrasi"
+            onClick={() => router.push("/admin")}
+            type="button"
+          >
+            <ArrowLeftIcon data-icon="inline-start" />
+          </Button>
           <div>
-            <span className="builder-kicker">Studio formulir</span>
-            <input
+            <span className="text-xs text-muted-foreground">
+              Studio formulir
+            </span>
+            <Input
               aria-label="Judul formulir singkat"
-              onChange={(event) => updateSchema({ shortTitle: event.target.value })}
+              onChange={(event) =>
+                updateSchema({ shortTitle: event.target.value })
+              }
               value={builder.schema.shortTitle}
             />
           </div>
-          <span className="autosave-status"><i /> Draft lokal</span>
+          <span className="hidden text-xs text-muted-foreground 2xl:block">
+            <i /> Draft lokal
+          </span>
         </div>
-        <div className="builder-top-actions">
-          <div className="view-switcher" aria-label="Mode tampilan">
-            <button className={mode === "build" ? "is-active" : ""} onClick={() => setMode("build")} type="button">Susun</button>
-            <button className={mode === "preview" ? "is-active" : ""} onClick={() => setMode("preview")} type="button">Pratinjau</button>
-          </div>
-          <Button className="h-9 px-3" onClick={saveDraft} type="button" variant="outline">
-            <IconDeviceFloppy /> Simpan draft
+        <div className="flex flex-wrap items-center gap-2">
+          <ToggleGroup
+            aria-label="Mode tampilan"
+            value={[mode]}
+            onValueChange={(values) => {
+              if (values[0] === "build" || values[0] === "preview")
+                setMode(values[0]);
+            }}
+            variant="outline"
+          >
+            <ToggleGroupItem value="build">Susun</ToggleGroupItem>
+            <ToggleGroupItem value="preview">Pratinjau</ToggleGroupItem>
+          </ToggleGroup>
+          <Button
+            className="h-9 px-3"
+            onClick={saveDraft}
+            type="button"
+            variant="outline"
+          >
+            <FloppyDiskIcon data-icon="inline-start" /> Simpan draft
           </Button>
-          <Button className="h-9 px-4" disabled={isPending} onClick={publish} type="button">
-            {isPending ? "Menerbitkan…" : <><IconRocket /> Terbitkan</>}
+          <Button
+            className="h-9 px-4"
+            disabled={isPending}
+            onClick={publish}
+            type="button"
+          >
+            {isPending ? (
+              "Menerbitkan…"
+            ) : (
+              <>
+                <RocketIcon data-icon="inline-start" /> Terbitkan
+              </>
+            )}
           </Button>
         </div>
       </header>
 
-      {notice ? <div className="builder-notice" role="status"><IconCheck size={15} /> {notice}</div> : null}
+      {notice ? (
+        <Alert className="mx-4 my-3 w-auto" role="status">
+          <CheckIcon />
+          <AlertDescription>{notice}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {mode === "build" ? (
-        <div className="builder-layout">
-          <aside className="builder-palette">
-            <div className="builder-panel-heading">
+        <div className="grid min-w-0 items-start gap-4 p-4 xl:grid-cols-[210px_minmax(0,1fr)_260px]">
+          <aside className="flex flex-col gap-4 rounded-xl border bg-card p-4 xl:sticky xl:top-24">
+            <div className="flex flex-col gap-1 [&>span]:text-sm [&>span]:font-semibold [&_small]:text-xs [&_small]:text-muted-foreground">
               <span>Blok pertanyaan</span>
               <small>Klik untuk menambahkan</small>
             </div>
-            <div className="palette-list">
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
               {palette.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <button aria-label={`Tambah ${item.title}`} key={item.type} onClick={() => addField(item.type)} type="button">
-                    <span><Icon size={18} /></span>
-                    <strong>{item.title}</strong>
-                    <small>{item.description}</small>
-                    <IconPlus className="palette-plus" size={15} />
-                  </button>
+                  <Button
+                    variant="outline"
+                    className="h-auto justify-start gap-2 whitespace-normal p-3 text-left"
+                    aria-label={`Tambah ${item.title}`}
+                    key={item.type}
+                    onClick={() => addField(item.type)}
+                    type="button"
+                  >
+                    <Icon data-icon="inline-start" />
+                    <span className="flex min-w-0 flex-col items-start gap-1">
+                      <span>{item.title}</span>
+                      <span className="text-xs">{item.description}</span>
+                    </span>
+                    <PlusIcon data-icon="inline-start" className="ml-auto" />
+                  </Button>
                 );
               })}
             </div>
-            <button className="add-section-button" onClick={addSection} type="button">
-              <IconLayoutRows size={17} /> Tambah bagian
-            </button>
-            <div className="builder-tip">
-              <IconGripVertical size={18} />
-              <p><strong>Susun dengan cepat.</strong> Pilih blok di kanvas, lalu atur detailnya di panel kanan.</p>
-            </div>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={addSection}
+              type="button"
+            >
+              <RowsIcon data-icon="inline-start" /> Tambah bagian
+            </Button>
+            <Alert>
+              <AlertDescription>
+                Pilih blok di kanvas, lalu atur detailnya di panel pengaturan.
+              </AlertDescription>
+            </Alert>
           </aside>
 
-          <main className="builder-canvas">
-            <button className={`form-cover${selection.kind === "form" ? " is-selected" : ""}`} onClick={() => setSelection({ kind: "form" })} type="button">
-              <span className="eyebrow">{builder.category}</span>
-              <h1>{builder.schema.title || "Formulir tanpa judul"}</h1>
-              <p>{builder.schema.description || "Tambahkan deskripsi formulir."}</p>
-              <span className="cover-meta">{builder.schema.sections.length} bagian · {countFields(builder.schema)} pertanyaan</span>
-            </button>
+          <main className="flex min-w-0 flex-col gap-4">
+            <Button
+              variant="outline"
+              className={cn(
+                "h-auto w-full flex-col items-start gap-3 whitespace-normal p-6 text-left",
+                selection.kind === "form" && "ring-2 ring-ring",
+              )}
+              onClick={() => setSelection({ kind: "form" })}
+              type="button"
+            >
+              <span className="mb-2 text-xs font-medium text-muted-foreground">
+                {builder.category}
+              </span>
+              <span>{builder.schema.title || "Formulir tanpa judul"}</span>
+              <span>
+                {builder.schema.description || "Tambahkan deskripsi formulir."}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {builder.schema.sections.length} bagian ·{" "}
+                {countFields(builder.schema)} pertanyaan
+              </span>
+            </Button>
 
             {builder.schema.sections.map((section, sectionIndex) => (
-              <section className={`builder-section-card${isContinuous ? " is-continuous" : ""}${selection.kind === "section" && selection.sectionId === section.id ? " is-selected" : ""}`} key={section.id}>
-                {!isContinuous ? <button className="builder-section-heading" onClick={() => setSelection({ kind: "section", sectionId: section.id })} type="button">
-                  <span>{(sectionIndex + 1).toString().padStart(2, "0")}</span>
-                  <div>
-                    <small>{section.eyebrow}</small>
-                    <h2>{section.title}</h2>
-                    <p>{section.description}</p>
+              <section
+                className={cn(
+                  "overflow-hidden rounded-xl border bg-card",
+                  selection.kind === "section" &&
+                    selection.sectionId === section.id
+                    ? "ring-2 ring-ring"
+                    : "",
+                )}
+                key={section.id}
+              >
+                {!isContinuous ? (
+                  <Button
+                    variant="ghost"
+                    className="h-auto w-full justify-start gap-3 whitespace-normal p-4 text-left"
+                    onClick={() =>
+                      setSelection({ kind: "section", sectionId: section.id })
+                    }
+                    type="button"
+                  >
+                    <span>
+                      {(sectionIndex + 1).toString().padStart(2, "0")}
+                    </span>
+                    <div>
+                      <small>{section.eyebrow}</small>
+                      <h2>{section.title}</h2>
+                      <p>{section.description}</p>
+                    </div>
+                    <b>{section.fields.length} item</b>
+                  </Button>
+                ) : (
+                  <div className="flex flex-wrap justify-between gap-2 border-b bg-muted p-4 text-xs text-muted-foreground">
+                    <span>Alur kontinu</span>
+                    <small>
+                      {section.fields.length} pertanyaan tanpa pembatas bagian
+                    </small>
                   </div>
-                  <b>{section.fields.length} item</b>
-                </button> : <div className="continuous-flow-label"><span>Alur kontinu</span><small>{section.fields.length} pertanyaan tanpa pembatas bagian</small></div>}
-                <div className="builder-field-list">
+                )}
+                <div className="flex flex-col gap-2 p-3">
                   {section.fields.map((field, fieldIndex) => {
-                    const active = selection.kind === "field" && selection.fieldId === field.id;
+                    const active =
+                      selection.kind === "field" &&
+                      selection.fieldId === field.id;
                     return (
-                      <article className={`builder-field-card${field.visibleWhen ? " is-conditional" : ""}${active ? " is-selected" : ""}`} key={field.id}>
-                        <button className="field-select" onClick={() => setSelection({ kind: "field", sectionId: section.id, fieldId: field.id })} type="button">
-                          <IconGripVertical className="field-grip" size={17} />
-                          <span className="field-number">{field.number || (fieldIndex + 1).toString().padStart(2, "0")}</span>
-                          <div className="field-card-copy">
-                            <span className="field-type">{fieldTypeLabel(field.type)}</span>
-                            {firstVisibilityRule(field) ? <ConditionBadge field={field} fieldMap={fieldMap} /> : null}
+                      <article
+                        className={cn(
+                          "rounded-lg border border-transparent",
+                          field.visibleWhen
+                            ? "ml-4 border-l-2 border-l-primary sm:ml-8"
+                            : "",
+                          active ? "ring-2 ring-ring" : "",
+                        )}
+                        key={field.id}
+                      >
+                        <Button
+                          variant="ghost"
+                          className="h-auto w-full items-start justify-start gap-3 whitespace-normal p-3 text-left"
+                          onClick={() =>
+                            setSelection({
+                              kind: "field",
+                              sectionId: section.id,
+                              fieldId: field.id,
+                            })
+                          }
+                          type="button"
+                        >
+                          <DotsSixVerticalIcon
+                            data-icon="inline-start"
+                            className="shrink-0 text-muted-foreground"
+                          />
+                          <span className="text-xs text-muted-foreground">
+                            {field.number ||
+                              (fieldIndex + 1).toString().padStart(2, "0")}
+                          </span>
+                          <div className="flex min-w-0 flex-col gap-2 [&_h3]:font-medium [&_p]:text-xs [&_p]:text-muted-foreground">
+                            <span className="text-xs text-muted-foreground">
+                              {fieldTypeLabel(field.type)}
+                            </span>
+                            {firstVisibilityRule(field) ? (
+                              <ConditionBadge
+                                field={field}
+                                fieldMap={fieldMap}
+                              />
+                            ) : null}
                             <h3>{field.label}</h3>
-                            {field.description ? <p>{field.description}</p> : null}
-                            <FieldMock field={field} />
+                            {field.description ? (
+                              <p>{field.description}</p>
+                            ) : null}
                           </div>
-                          {field.required ? <span className="required-pill">Wajib</span> : null}
-                        </button>
+                          {field.required ? (
+                            <Badge variant="secondary">Wajib</Badge>
+                          ) : null}
+                        </Button>
+                        <div className="px-3 pb-3">
+                          <FieldMock field={field} />
+                        </div>
                         {active ? (
-                          <div className="field-quick-actions">
-                            <button aria-label="Naikkan pertanyaan" disabled={fieldIndex === 0} onClick={() => moveField(section.id, field.id, -1)} type="button"><IconArrowUp size={15} /></button>
-                            <button aria-label="Turunkan pertanyaan" disabled={fieldIndex === section.fields.length - 1} onClick={() => moveField(section.id, field.id, 1)} type="button"><IconArrowDown size={15} /></button>
-                            <button aria-label="Duplikat pertanyaan" onClick={() => duplicateField(section.id, field.id)} type="button"><IconCopy size={15} /></button>
-                            <button aria-label="Hapus pertanyaan" onClick={() => removeField(section.id, field.id)} type="button"><IconTrash size={15} /></button>
+                          <div className="flex justify-end gap-1 border-t p-1">
+                            <Button
+                              variant="outline"
+                              aria-label="Naikkan pertanyaan"
+                              disabled={fieldIndex === 0}
+                              onClick={() =>
+                                moveField(section.id, field.id, -1)
+                              }
+                              type="button"
+                            >
+                              <ArrowUpIcon data-icon="inline-start" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              aria-label="Turunkan pertanyaan"
+                              disabled={
+                                fieldIndex === section.fields.length - 1
+                              }
+                              onClick={() => moveField(section.id, field.id, 1)}
+                              type="button"
+                            >
+                              <ArrowDownIcon data-icon="inline-start" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              aria-label="Duplikat pertanyaan"
+                              onClick={() =>
+                                duplicateField(section.id, field.id)
+                              }
+                              type="button"
+                            >
+                              <CopyIcon data-icon="inline-start" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              aria-label="Hapus pertanyaan"
+                              onClick={() => removeField(section.id, field.id)}
+                              type="button"
+                            >
+                              <TrashIcon data-icon="inline-start" />
+                            </Button>
                           </div>
                         ) : null}
                       </article>
@@ -517,168 +816,370 @@ export function FormBuilder() {
                 </div>
               </section>
             ))}
-            {!isContinuous ? <button className="canvas-add-section" onClick={addSection} type="button"><IconPlus size={17} /> Tambah bagian berikutnya</button> : null}
+            {!isContinuous ? (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={addSection}
+                type="button"
+              >
+                <PlusIcon data-icon="inline-start" /> Tambah bagian berikutnya
+              </Button>
+            ) : null}
           </main>
 
-          <aside className="builder-inspector">
-            <div className="builder-panel-heading inspector-heading">
-              <span><IconSettings size={16} /> Pengaturan</span>
-              <small>{selection.kind === "form" ? "Formulir" : selection.kind === "section" ? "Bagian" : "Pertanyaan"}</small>
+          <aside className="min-w-0 rounded-xl border bg-card xl:sticky xl:top-24 xl:max-h-[calc(100svh-7rem)] xl:overflow-y-auto">
+            <div className="flex flex-col gap-1 [&>span]:text-sm [&>span]:font-semibold [&_small]:text-xs [&_small]:text-muted-foreground border-b p-4">
+              <span>
+                <GearIcon size={16} /> Pengaturan
+              </span>
+              <small>
+                {selection.kind === "form"
+                  ? "Formulir"
+                  : selection.kind === "section"
+                    ? "Bagian"
+                    : "Pertanyaan"}
+              </small>
             </div>
             {selection.kind === "form" ? (
-              <div className="inspector-form">
-                <div className="layout-picker">
+              <FieldGroup className="p-4">
+                <div className="flex flex-col gap-3">
                   <span>Struktur formulir</span>
-                  <div>
-                    <button className={!isContinuous ? "is-active" : ""} onClick={() => setLayout("sectioned")} type="button"><IconLayoutRows size={16} /> Berbagian</button>
-                    <button className={isContinuous ? "is-active" : ""} onClick={() => setLayout("continuous")} type="button"><IconAlignLeft size={16} /> Kontinu</button>
-                  </div>
-                  <small>{isContinuous ? "Semua pertanyaan tampil dalam satu alur panjang." : "Pertanyaan dikelompokkan dengan judul bagian."}</small>
+                  <ToggleGroup
+                    aria-label="Struktur formulir"
+                    value={[isContinuous ? "continuous" : "sectioned"]}
+                    onValueChange={(values) => {
+                      if (
+                        values[0] === "continuous" ||
+                        values[0] === "sectioned"
+                      )
+                        setLayout(values[0]);
+                    }}
+                    variant="outline"
+                  >
+                    <ToggleGroupItem value="sectioned">
+                      <RowsIcon data-icon="inline-start" /> Berbagian
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="continuous">
+                      <TextAlignLeftIcon data-icon="inline-start" /> Kontinu
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <small>
+                    {isContinuous
+                      ? "Semua pertanyaan tampil dalam satu alur panjang."
+                      : "Pertanyaan dikelompokkan dengan judul bagian."}
+                  </small>
                 </div>
                 <InspectorField label="Judul lengkap">
-                  <Textarea value={builder.schema.title} onChange={(event) => updateSchema({ title: event.target.value })} />
+                  <Textarea
+                    value={builder.schema.title}
+                    onChange={(event) =>
+                      updateSchema({ title: event.target.value })
+                    }
+                  />
                 </InspectorField>
                 <InspectorField label="Nama singkat">
-                  <Input value={builder.schema.shortTitle} onChange={(event) => updateSchema({ shortTitle: event.target.value })} />
+                  <Input
+                    value={builder.schema.shortTitle}
+                    onChange={(event) =>
+                      updateSchema({ shortTitle: event.target.value })
+                    }
+                  />
                 </InspectorField>
                 <InspectorField label="Kategori">
-                  <Input value={builder.category} onChange={(event) => setBuilder((current) => ({ ...current, category: event.target.value }))} />
+                  <Input
+                    value={builder.category}
+                    onChange={(event) =>
+                      setBuilder((current) => ({
+                        ...current,
+                        category: event.target.value,
+                      }))
+                    }
+                  />
                 </InspectorField>
                 <InspectorField label="Deskripsi">
-                  <Textarea value={builder.schema.description} onChange={(event) => updateSchema({ description: event.target.value })} />
+                  <Textarea
+                    value={builder.schema.description}
+                    onChange={(event) =>
+                      updateSchema({ description: event.target.value })
+                    }
+                  />
                 </InspectorField>
-              </div>
+              </FieldGroup>
             ) : null}
 
             {selection.kind === "section" && selectedSection ? (
-              <div className="inspector-form">
+              <FieldGroup className="p-4">
                 <InspectorField label="Penanda bagian">
-                  <Input value={selectedSection.eyebrow || ""} onChange={(event) => updateSection(selectedSection.id, { eyebrow: event.target.value })} />
+                  <Input
+                    value={selectedSection.eyebrow || ""}
+                    onChange={(event) =>
+                      updateSection(selectedSection.id, {
+                        eyebrow: event.target.value,
+                      })
+                    }
+                  />
                 </InspectorField>
                 <InspectorField label="Judul bagian">
-                  <Input value={selectedSection.title} onChange={(event) => updateSection(selectedSection.id, { title: event.target.value })} />
+                  <Input
+                    value={selectedSection.title}
+                    onChange={(event) =>
+                      updateSection(selectedSection.id, {
+                        title: event.target.value,
+                      })
+                    }
+                  />
                 </InspectorField>
                 <InspectorField label="Deskripsi">
-                  <Textarea value={selectedSection.description || ""} onChange={(event) => updateSection(selectedSection.id, { description: event.target.value })} />
+                  <Textarea
+                    value={selectedSection.description || ""}
+                    onChange={(event) =>
+                      updateSection(selectedSection.id, {
+                        description: event.target.value,
+                      })
+                    }
+                  />
                 </InspectorField>
-                <button className="delete-section-button" onClick={() => removeSection(selectedSection.id)} type="button">
-                  <IconTrash size={15} /> Hapus bagian
-                  <small>{builder.schema.sections.length === 1 ? "Pertanyaan tetap disimpan sebagai formulir kontinu" : "Semua pertanyaan di dalamnya ikut dihapus"}</small>
-                </button>
-              </div>
+                <Button
+                  variant="outline"
+                  onClick={() => removeSection(selectedSection.id)}
+                  type="button"
+                >
+                  <TrashIcon data-icon="inline-start" /> Hapus bagian
+                  <small>
+                    {builder.schema.sections.length === 1
+                      ? "Pertanyaan tetap disimpan sebagai formulir kontinu"
+                      : "Semua pertanyaan di dalamnya ikut dihapus"}
+                  </small>
+                </Button>
+              </FieldGroup>
             ) : null}
 
             {selection.kind === "field" && selectedField ? (
-              <div className="inspector-form">
-                <div className="inspector-type-badge">{fieldTypeLabel(selectedField.type)}</div>
+              <FieldGroup className="p-4">
+                <Badge variant="secondary">
+                  {fieldTypeLabel(selectedField.type)}
+                </Badge>
                 <InspectorField label="Pertanyaan">
-                  <Textarea value={selectedField.label} onChange={(event) => updateField(selection.sectionId, selectedField.id, { label: event.target.value })} />
+                  <Textarea
+                    value={selectedField.label}
+                    onChange={(event) =>
+                      updateField(selection.sectionId, selectedField.id, {
+                        label: event.target.value,
+                      })
+                    }
+                  />
                 </InspectorField>
                 <InspectorField label="Petunjuk (opsional)">
-                  <Textarea value={selectedField.description || ""} onChange={(event) => updateField(selection.sectionId, selectedField.id, { description: event.target.value })} />
+                  <Textarea
+                    value={selectedField.description || ""}
+                    onChange={(event) =>
+                      updateField(selection.sectionId, selectedField.id, {
+                        description: event.target.value,
+                      })
+                    }
+                  />
                 </InspectorField>
-                {(selectedField.type === "text" || selectedField.type === "textarea") ? (
+                {selectedField.type === "text" ||
+                selectedField.type === "textarea" ? (
                   <InspectorField label="Teks placeholder">
-                    <Input value={selectedField.placeholder || ""} onChange={(event) => updateField(selection.sectionId, selectedField.id, { placeholder: event.target.value })} />
+                    <Input
+                      value={selectedField.placeholder || ""}
+                      onChange={(event) =>
+                        updateField(selection.sectionId, selectedField.id, {
+                          placeholder: event.target.value,
+                        })
+                      }
+                    />
                   </InspectorField>
                 ) : null}
-                {(selectedField.type === "singleChoice" || selectedField.type === "multiChoice") ? (
-                  <div className="option-editor">
-                    <label>Daftar pilihan</label>
+                {selectedField.type === "singleChoice" ||
+                selectedField.type === "multiChoice" ? (
+                  <div className="flex flex-col gap-2 [&>div]:flex [&>div]:items-center [&>div]:gap-2 [&>div>input]:min-w-0 [&>div>input]:flex-1">
+                    <p className="text-sm font-medium">Daftar pilihan</p>
                     {selectedField.options.map((option, index) => (
                       <div key={`${selectedField.id}-${index}`}>
                         <span>{index + 1}</span>
                         <Input
+                          aria-label={`Pilihan ${index + 1}`}
                           value={option.label}
                           onChange={(event) => {
-                            const options = selectedField.options.map((item, optionIndex) =>
-                              optionIndex === index
-                                ? { value: `pilihan_${optionIndex + 1}`, label: event.target.value }
-                                : item,
+                            const options = selectedField.options.map(
+                              (item, optionIndex) =>
+                                optionIndex === index
+                                  ? {
+                                      value: `pilihan_${optionIndex + 1}`,
+                                      label: event.target.value,
+                                    }
+                                  : item,
                             );
-                            updateField(selection.sectionId, selectedField.id, { options });
+                            updateField(selection.sectionId, selectedField.id, {
+                              options,
+                            });
                           }}
                         />
-                        <button
+                        <Button
+                          variant="outline"
                           aria-label={`Hapus pilihan ${index + 1}`}
                           disabled={selectedField.options.length <= 1}
-                          onClick={() => removeChoiceOption(selectedField.id, index)}
+                          onClick={() =>
+                            removeChoiceOption(selectedField.id, index)
+                          }
                           type="button"
-                        ><IconTrash size={14} /></button>
+                        >
+                          <TrashIcon data-icon="inline-start" />
+                        </Button>
                       </div>
                     ))}
-                    <button onClick={() => updateField(selection.sectionId, selectedField.id, { options: [...selectedField.options, { value: `pilihan_${selectedField.options.length + 1}`, label: `Pilihan ${selectedField.options.length + 1}` }] })} type="button">
-                      <IconPlus size={14} /> Tambah pilihan
-                    </button>
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        updateField(selection.sectionId, selectedField.id, {
+                          options: [
+                            ...selectedField.options,
+                            {
+                              value: `pilihan_${selectedField.options.length + 1}`,
+                              label: `Pilihan ${selectedField.options.length + 1}`,
+                            },
+                          ],
+                        })
+                      }
+                      type="button"
+                    >
+                      <PlusIcon data-icon="inline-start" /> Tambah pilihan
+                    </Button>
                   </div>
                 ) : null}
-                <div className="condition-editor">
-                  <label className="required-toggle condition-toggle">
-                    <span><strong>Logika kondisi</strong><small>Tampilkan hanya setelah jawaban tertentu</small></span>
+                <div className="flex flex-col gap-3">
+                  <label className="flex items-center justify-between gap-3 [&>span]:flex [&>span]:flex-col [&_small]:text-xs [&_small]:text-muted-foreground">
+                    <span>
+                      <strong>Logika kondisi</strong>
+                      <small>Tampilkan hanya setelah jawaban tertentu</small>
+                    </span>
                     <Switch
                       checked={Boolean(selectedRule)}
-                      disabled={!selectedRule && conditionalSources.length === 0}
+                      disabled={
+                        !selectedRule && conditionalSources.length === 0
+                      }
                       onCheckedChange={(checked) => {
                         if (!checked) {
-                          updateField(selection.sectionId, selectedField.id, { visibleWhen: undefined });
+                          updateField(selection.sectionId, selectedField.id, {
+                            visibleWhen: undefined,
+                          });
                           return;
                         }
                         const source = conditionalSources.at(-1);
-                        if (!source || (source.type !== "singleChoice" && source.type !== "multiChoice")) return;
+                        if (
+                          !source ||
+                          (source.type !== "singleChoice" &&
+                            source.type !== "multiChoice")
+                        )
+                          return;
                         updateField(selection.sectionId, selectedField.id, {
                           visibleWhen: {
                             fieldId: source.id,
-                            operator: source.type === "multiChoice" ? "includes" : "equals",
+                            operator:
+                              source.type === "multiChoice"
+                                ? "includes"
+                                : "equals",
                             value: source.options[0]?.value ?? "",
                           },
                         });
                       }}
                     />
                   </label>
-                  {!selectedRule && conditionalSources.length === 0 ? <p className="condition-hint">Tambahkan pertanyaan pilihan sebelum pertanyaan ini untuk membuat kondisi.</p> : null}
+                  {!selectedRule && conditionalSources.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Tambahkan pertanyaan pilihan sebelum pertanyaan ini untuk
+                      membuat kondisi.
+                    </p>
+                  ) : null}
                   {selectedRule ? (
-                    <div className="condition-rule">
-                      <div className="condition-rule-line"><IconGitBranch size={16} /><span>Tampilkan pertanyaan ini jika</span></div>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <GitBranchIcon size={16} />
+                        <span>Tampilkan pertanyaan ini jika</span>
+                      </div>
                       <InspectorField label="Pertanyaan sumber">
                         <NativeSelect
                           className="w-full"
                           value={selectedRule.fieldId}
                           onChange={(event) => {
                             const source = fieldMap.get(event.target.value);
-                            if (!source || (source.type !== "singleChoice" && source.type !== "multiChoice")) return;
+                            if (
+                              !source ||
+                              (source.type !== "singleChoice" &&
+                                source.type !== "multiChoice")
+                            )
+                              return;
                             updateField(selection.sectionId, selectedField.id, {
                               visibleWhen: {
                                 fieldId: source.id,
-                                operator: source.type === "multiChoice" ? "includes" : "equals",
+                                operator:
+                                  source.type === "multiChoice"
+                                    ? "includes"
+                                    : "equals",
                                 value: source.options[0]?.value ?? "",
                               },
                             });
                           }}
                         >
-                          {conditionalSources.map((field) => <NativeSelectOption key={field.id} value={field.id}>{field.label}</NativeSelectOption>)}
+                          {conditionalSources.map((field) => (
+                            <NativeSelectOption key={field.id} value={field.id}>
+                              {field.label}
+                            </NativeSelectOption>
+                          ))}
                         </NativeSelect>
                       </InspectorField>
-                      {selectedRuleSource && (selectedRuleSource.type === "singleChoice" || selectedRuleSource.type === "multiChoice") ? (
+                      {selectedRuleSource &&
+                      (selectedRuleSource.type === "singleChoice" ||
+                        selectedRuleSource.type === "multiChoice") ? (
                         <InspectorField label="Jawaban pemicu">
                           <NativeSelect
                             className="w-full"
                             value={selectedRule.value}
-                            onChange={(event) => updateField(selection.sectionId, selectedField.id, {
-                              visibleWhen: { ...selectedRule, value: event.target.value },
-                            })}
+                            onChange={(event) =>
+                              updateField(
+                                selection.sectionId,
+                                selectedField.id,
+                                {
+                                  visibleWhen: {
+                                    ...selectedRule,
+                                    value: event.target.value,
+                                  },
+                                },
+                              )
+                            }
                           >
-                            {selectedRuleSource.options.map((option) => <NativeSelectOption key={option.value} value={option.value}>{option.label}</NativeSelectOption>)}
+                            {selectedRuleSource.options.map((option) => (
+                              <NativeSelectOption
+                                key={option.value}
+                                value={option.value}
+                              >
+                                {option.label}
+                              </NativeSelectOption>
+                            ))}
                           </NativeSelect>
                         </InspectorField>
                       ) : null}
                     </div>
                   ) : null}
                 </div>
-                <label className="required-toggle">
-                  <span><strong>Wajib diisi</strong><small>Pengguna harus menjawab pertanyaan ini</small></span>
-                  <Switch checked={selectedField.required || false} onCheckedChange={(checked) => updateField(selection.sectionId, selectedField.id, { required: checked })} />
+                <label className="flex items-center justify-between gap-3 [&>span]:flex [&>span]:flex-col [&_small]:text-xs [&_small]:text-muted-foreground">
+                  <span>
+                    <strong>Wajib diisi</strong>
+                    <small>Pengguna harus menjawab pertanyaan ini</small>
+                  </span>
+                  <Switch
+                    checked={selectedField.required || false}
+                    onCheckedChange={(checked) =>
+                      updateField(selection.sectionId, selectedField.id, {
+                        required: checked,
+                      })
+                    }
+                  />
                 </label>
-              </div>
+              </FieldGroup>
             ) : null}
           </aside>
         </div>
@@ -689,20 +1190,47 @@ export function FormBuilder() {
   );
 }
 
-function InspectorField({ children, label }: { children: React.ReactNode; label: string }) {
-  return <label className="inspector-field"><span>{label}</span>{children}</label>;
+function InspectorField({
+  children,
+  label,
+}: {
+  children: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <Field>
+      <FieldLabel className="flex flex-col items-stretch gap-2">
+        {label}
+        {children}
+      </FieldLabel>
+    </Field>
+  );
 }
 
 function FieldMock({ field }: { field: FormField }) {
   if (field.type === "text" || field.type === "textarea") {
-    return <div className={field.type === "text" ? "field-mock-line" : "field-mock-area"}>{field.placeholder}</div>;
+    return field.type === "text" ? (
+      <Input
+        disabled
+        aria-label={field.label}
+        placeholder={field.placeholder}
+      />
+    ) : (
+      <Textarea
+        disabled
+        aria-label={field.label}
+        placeholder={field.placeholder}
+      />
+    );
   }
   if (field.type === "matrixSingle") return null;
   if (!("options" in field)) return null;
   return (
-    <div className="field-mock-options">
+    <div className="grid gap-2 sm:grid-cols-2">
       {field.options.slice(0, 4).map((option) => (
-        <span key={option.value}><i className={field.type === "singleChoice" ? "round" : ""} /> {option.label}</span>
+        <Badge variant="outline" key={option.value}>
+          {option.label}
+        </Badge>
       ))}
     </div>
   );
@@ -710,26 +1238,66 @@ function FieldMock({ field }: { field: FormField }) {
 
 function Preview({ builder }: { builder: BuilderState }) {
   const previewFieldMap = new Map(
-    builder.schema.sections.flatMap((section) => section.fields).map((field) => [field.id, field]),
+    builder.schema.sections
+      .flatMap((section) => section.fields)
+      .map((field) => [field.id, field]),
   );
   return (
-    <main className="builder-preview-wrap">
-      <div className="preview-device-label"><span /> Pratinjau desktop · data tidak akan disimpan</div>
-      <div className="builder-preview">
+    <main className="mx-auto max-w-4xl p-4 md:p-8">
+      <div className="mb-4 text-center text-xs text-muted-foreground">
+        <span /> Pratinjau desktop · data tidak akan disimpan
+      </div>
+      <div className="overflow-hidden rounded-xl border bg-card [&>header]:flex [&>header]:flex-col [&>header]:gap-3 [&>header]:p-6 [&_h1]:text-2xl [&_h1]:font-semibold [&>header>p]:text-muted-foreground">
         <header>
-          <span className="eyebrow">{builder.category}</span>
+          <span className="mb-2 text-xs font-medium text-muted-foreground">
+            {builder.category}
+          </span>
           <h1>{builder.schema.title}</h1>
           <p>{builder.schema.description}</p>
         </header>
-        <div className="preview-patient-row"><span>Nama pasien</span><span>No. rekam medis</span><span>Ruangan</span></div>
+        <div className="grid gap-3 border-y bg-muted p-6 sm:grid-cols-3 [&>span]:rounded-md [&>span]:border [&>span]:bg-background [&>span]:p-3 [&>span]:text-xs [&>span]:text-muted-foreground">
+          <span>Nama pasien</span>
+          <span>No. rekam medis</span>
+          <span>Ruangan</span>
+        </div>
         {builder.schema.sections.map((section, index) => (
           <section key={section.id}>
-            {!isContinuousSchema(builder.schema) ? <div className="preview-section-title"><b>{(index + 1).toString().padStart(2, "0")}</b><div><small>{section.eyebrow}</small><h2>{section.title}</h2><p>{section.description}</p></div></div> : null}
-            <div className="preview-question-list">
+            {!isContinuousSchema(builder.schema) ? (
+              <div className="flex gap-3 border-b p-6 [&_h2]:text-xl [&_h2]:font-semibold [&_p]:text-sm [&_p]:text-muted-foreground">
+                <b>{(index + 1).toString().padStart(2, "0")}</b>
+                <div>
+                  <small>{section.eyebrow}</small>
+                  <h2>{section.title}</h2>
+                  <p>{section.description}</p>
+                </div>
+              </div>
+            ) : null}
+            <div className="divide-y px-6">
               {section.fields.map((field) => (
-                <div className={`preview-question${field.visibleWhen ? " is-conditional" : ""}`} key={field.id}>
+                <div
+                  className={cn(
+                    "flex gap-3 py-5 [&>div]:min-w-0 [&>div]:flex-1 [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-medium [&_p]:mb-3 [&_p]:text-xs [&_p]:text-muted-foreground",
+                    field.visibleWhen
+                      ? "ml-4 border-l-2 border-l-primary sm:ml-8"
+                      : "",
+                  )}
+                  key={field.id}
+                >
                   <span>{field.number}</span>
-                  <div>{firstVisibilityRule(field) ? <ConditionBadge field={field} fieldMap={previewFieldMap} /> : null}<h3>{field.label}{field.required ? <sup>*</sup> : null}</h3><p>{field.description}</p><FieldMock field={field} /></div>
+                  <div>
+                    {firstVisibilityRule(field) ? (
+                      <ConditionBadge
+                        field={field}
+                        fieldMap={previewFieldMap}
+                      />
+                    ) : null}
+                    <h3>
+                      {field.label}
+                      {field.required ? <sup>*</sup> : null}
+                    </h3>
+                    <p>{field.description}</p>
+                    <FieldMock field={field} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -744,13 +1312,29 @@ function isContinuousSchema(schema: FormSchema) {
   return schema.layout === "continuous";
 }
 
-function ConditionBadge({ field, fieldMap }: { field: FormField; fieldMap: Map<string, FormField> }) {
+function ConditionBadge({
+  field,
+  fieldMap,
+}: {
+  field: FormField;
+  fieldMap: Map<string, FormField>;
+}) {
   const rule = firstVisibilityRule(field);
   if (!rule) return null;
   const source = fieldMap.get(rule.fieldId);
   let valueLabel = rule.value;
-  if (source && (source.type === "singleChoice" || source.type === "multiChoice")) {
-    valueLabel = source.options.find((option) => option.value === rule.value)?.label ?? rule.value;
+  if (
+    source &&
+    (source.type === "singleChoice" || source.type === "multiChoice")
+  ) {
+    valueLabel =
+      source.options.find((option) => option.value === rule.value)?.label ??
+      rule.value;
   }
-  return <span className="condition-badge"><IconGitBranch size={12} /> Jika “{source?.label ?? "pertanyaan"}” = “{valueLabel}”</span>;
+  return (
+    <Badge variant="secondary">
+      <GitBranchIcon data-icon="inline-start" /> Jika “
+      {source?.label ?? "pertanyaan"}” = “{valueLabel}”
+    </Badge>
+  );
 }

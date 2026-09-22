@@ -147,7 +147,7 @@ export async function saveSubmissionAction(
   });
 
   revalidatePath("/");
-  revalidatePath("/submissions");
+  revalidatePath("/admin/submissions");
 
   return {
     success: true,
