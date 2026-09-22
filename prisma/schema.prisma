@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  SUBMIT
+  VIEW
+  PRINT
+}
+
+model User {
+  id            String        @id
+  name          String
+  email         String        @unique
+  emailVerified Boolean       @default(false)
+  image         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  role          String?       @default("STAFF")
+  banned        Boolean?      @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+  formVersions  FormVersion[] @relation("FormVersionCreator")
+  submissions   Submission[]  @relation("SubmissionCreator")
+  updates       Submission[]  @relation("SubmissionUpdater")
+  auditEvents   AuditEvent[]
+
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String   @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  impersonatedBy String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Form {
+  id               String        @id @default(cuid())
+  slug             String        @unique
+  title            String
+  description      String
+  category         String
+  icon             String        @default("clipboard")
+  isActive         Boolean       @default(true)
+  currentVersionId String?       @unique
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  currentVersion   FormVersion?  @relation("CurrentFormVersion", fields: [currentVersionId], references: [id])
+  versions         FormVersion[] @relation("FormVersions")
+
+  @@index([isActive])
+  @@map("form")
+}
+
+model FormVersion {
+  id          String       @id @default(cuid())
+  formId      String
+  version     Int
+  schemaJson  Json
+  createdById String?
+  publishedAt DateTime?
+  createdAt   DateTime     @default(now())
+  form        Form         @relation("FormVersions", fields: [formId], references: [id], onDelete: Restrict)
+  currentFor  Form?        @relation("CurrentFormVersion")
+  createdBy   User?        @relation("FormVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  submissions Submission[]
+
+  @@unique([formId, version])
+  @@index([formId, publishedAt])
+  @@map("form_version")
+}
+
+model Submission {
+  id                  String           @id @default(cuid())
+  formVersionId       String
+  status              SubmissionStatus @default(DRAFT)
+  patientName         String
+  medicalRecordNumber String
+  room                String
+  answersJson         Json
+  createdById         String
+  updatedById         String
+  submittedAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  formVersion         FormVersion      @relation(fields: [formVersionId], references: [id], onDelete: Restrict)
+  createdBy           User             @relation("SubmissionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy           User             @relation("SubmissionUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  auditEvents         AuditEvent[]
+
+  @@index([medicalRecordNumber])
+  @@index([patientName])
+  @@index([formVersionId])
+  @@index([status, submittedAt])
+  @@index([createdById, updatedAt])
+  @@map("submission")
+}
+
+model AuditEvent {
+  id           String      @id @default(cuid())
+  actorId      String
+  action       AuditAction
+  entityType   String      @default("submission")
+  entityId     String
+  submissionId String?
+  metadataJson Json?
+  createdAt    DateTime    @default(now())
+  actor        User        @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  submission   Submission? @relation(fields: [submissionId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@map("audit_event")
+}
