@@ -39,11 +39,11 @@ export function AnswersView({ schema, answers }: { schema: FormSchema; answers: 
   return (
     <div className="answers-view">
       {schema.sections.map((section, sectionIndex) => (
-        <section className="answer-section" key={section.id}>
-          <div className="panel-heading compact">
+        <section className={`answer-section${schema.layout === "continuous" ? " continuous-answer-section" : ""}`} key={section.id}>
+          {schema.layout !== "continuous" ? <div className="panel-heading compact">
             <span>{(sectionIndex + 1).toString().padStart(2, "0")}</span>
             <div><p className="eyebrow">{section.eyebrow}</p><h2>{section.title}</h2></div>
-          </div>
+          </div> : null}
           <dl>
             {section.fields.map((field) =>
               isFieldVisible(field, answers) ? (

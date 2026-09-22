@@ -59,6 +59,7 @@ export type FormSection = {
 
 export type FormSchema = {
   schemaVersion: 1;
+  layout?: "sectioned" | "continuous";
   title: string;
   shortTitle: string;
   description: string;

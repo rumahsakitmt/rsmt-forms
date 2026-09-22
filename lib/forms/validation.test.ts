@@ -14,6 +14,10 @@ describe("form schema", () => {
     expect(parseFormSchema(assessmentSchema).shortTitle).toBe("Assessment Edukasi Pasien");
   });
 
+  it("preserves continuous form layout", () => {
+    expect(parseFormSchema({ ...assessmentSchema, layout: "continuous" }).layout).toBe("continuous");
+  });
+
   it("evaluates conditional visibility", () => {
     const field = assessmentSchema.sections[0].fields[1];
     expect(isFieldVisible(field, { culturalBarrier: "ada" })).toBe(true);

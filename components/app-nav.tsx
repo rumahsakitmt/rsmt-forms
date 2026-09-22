@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  IconForms,
   IconLayoutGrid,
   IconNotes,
   IconUsers,
@@ -16,7 +17,11 @@ const links = [
 export function AppNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const items = isAdmin
-    ? [...links, { href: "/admin/users", label: "Pengguna", icon: IconUsers }]
+    ? [
+        ...links,
+        { href: "/admin/forms/new", label: "Builder", icon: IconForms },
+        { href: "/admin/users", label: "Pengguna", icon: IconUsers },
+      ]
     : links;
 
   return (

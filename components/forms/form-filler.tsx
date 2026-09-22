@@ -51,6 +51,7 @@ export function FormFiller({ formSlug, version, schema, draft }: FormFillerProps
   const [message, setMessage] = useState("");
   const [pendingIntent, setPendingIntent] = useState<SubmissionMode | null>(null);
   const [pending, startTransition] = useTransition();
+  const isContinuous = schema.layout === "continuous";
 
   const progress = useMemo(() => {
     const requiredFields = schema.sections.flatMap((section) =>
@@ -131,14 +132,14 @@ export function FormFiller({ formSlug, version, schema, draft }: FormFillerProps
             <ProgressValue>{() => `${progress}%`}</ProgressValue>
           </Progress>
         </div>
-        <nav aria-label="Bagian formulir" className="section-nav">
+        {!isContinuous ? <nav aria-label="Bagian formulir" className="section-nav">
           {schema.sections.map((section, index) => (
             <a href={`#${section.id}`} key={section.id}>
               <span>{(index + 1).toString().padStart(2, "0")}</span>
               {section.title}
             </a>
           ))}
-        </nav>
+        </nav> : null}
         <p className="rail-note"><IconCheck size={16} /> Tanda * wajib dilengkapi sebelum dikirim.</p>
       </aside>
 
@@ -162,15 +163,15 @@ export function FormFiller({ formSlug, version, schema, draft }: FormFillerProps
         </section>
 
         {schema.sections.map((section, sectionIndex) => (
-          <section className="form-section" id={section.id} key={section.id}>
-            <div className="panel-heading">
+          <section className={`form-section${isContinuous ? " continuous-form-section" : ""}`} id={section.id} key={section.id}>
+            {!isContinuous ? <div className="panel-heading">
               <span>{(sectionIndex + 1).toString().padStart(2, "0")}</span>
               <div>
                 <p className="eyebrow">{section.eyebrow}</p>
                 <h2>{section.title}</h2>
                 {section.description ? <p>{section.description}</p> : null}
               </div>
-            </div>
+            </div> : null}
             <div className="question-list">
               {section.fields.map((field) =>
                 isFieldVisible(field, answers) ? (

@@ -61,6 +61,7 @@ const formFieldSchema = z.discriminatedUnion("type", [
 
 export const formSchemaParser = z.object({
   schemaVersion: z.literal(1),
+  layout: z.enum(["sectioned", "continuous"]).optional(),
   title: z.string().min(1),
   shortTitle: z.string().min(1),
   description: z.string().min(1),
@@ -120,8 +121,9 @@ function validateValue(field: FormField, value: AnswerValue | undefined) {
     if (!Array.isArray(value) || value.some((item) => !allowed.has(item))) {
       return "Pilihan tidak dikenali.";
     }
+    const selected = new Set(value);
     if (
-      field.exclusiveValues?.some((exclusive) => value.includes(exclusive)) &&
+      field.exclusiveValues?.some((exclusive) => selected.has(exclusive)) &&
       value.length > 1
     ) {
       return "Pilihan “Tidak ada” tidak dapat digabungkan dengan pilihan lain.";
