@@ -8,6 +8,26 @@ import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
+  closestCenter,
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  useDraggable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
   TextAlignLeftIcon,
   ArrowDownIcon,
   ArrowLeftIcon,
@@ -29,6 +49,15 @@ import {
 
 import { createFormAction } from "@/app/actions/forms";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   NativeSelect,
@@ -36,7 +65,7 @@ import {
 } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { FormField, FormSchema } from "@/lib/forms/types";
+import type { FormField, FormSchema, FormSection } from "@/lib/forms/types";
 
 type BuilderState = {
   category: string;
@@ -49,6 +78,16 @@ type Selection =
   | { kind: "field"; sectionId: string; fieldId: string };
 
 type AddableFieldType = "text" | "textarea" | "singleChoice" | "multiChoice";
+
+type DragItemData =
+  | { type: "palette"; fieldType: AddableFieldType; label: string }
+  | { type: "section"; sectionId: string; label: string }
+  | {
+      type: "field";
+      sectionId: string;
+      fieldId: string;
+      label: string;
+    };
 
 const DRAFT_KEY = "rsud-form-builder:v1";
 
@@ -165,14 +204,59 @@ function firstVisibilityRule(field: FormField) {
     : field.visibleWhen;
 }
 
+function sectionDragId(sectionId: string) {
+  return `section:${sectionId}`;
+}
+
+function fieldDragId(fieldId: string) {
+  return `field:${fieldId}`;
+}
+
+function paletteDragId(type: AddableFieldType) {
+  return `palette:${type}`;
+}
+
+function hasBackwardCondition(sections: FormSection[]) {
+  const orderedFields = sections.flatMap((section) => section.fields);
+  const order = new Map(orderedFields.map((field, index) => [field.id, index]));
+  return orderedFields.some((field, index) => {
+    const rules = field.visibleWhen
+      ? Array.isArray(field.visibleWhen)
+        ? field.visibleWhen
+        : [field.visibleWhen]
+      : [];
+    return rules.some((rule) => (order.get(rule.fieldId) ?? -1) >= index);
+  });
+}
+
+function useReducedMotionPreference() {
+  const [reduced, setReduced] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return reduced;
+}
+
 export function FormBuilder() {
   const router = useRouter();
   const [builder, setBuilder] = useState<BuilderState>(initialState);
   const [selection, setSelection] = useState<Selection>({ kind: "form" });
   const [mode, setMode] = useState<"build" | "preview">("build");
   const [notice, setNotice] = useState("");
+  const [activeDrag, setActiveDrag] = useState<DragItemData | null>(null);
   const [isPending, startTransition] = useTransition();
   const isContinuous = builder.schema.layout === "continuous";
+  const reducedMotion = useReducedMotionPreference();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -279,18 +363,26 @@ export function FormBuilder() {
     }));
   }
 
-  function addField(type: AddableFieldType) {
-    const target =
-      selection.kind === "form"
+  function addField(
+    type: AddableFieldType,
+    targetSectionId?: string,
+    targetIndex?: number,
+  ) {
+    const target = targetSectionId
+      ? builder.schema.sections.find((section) => section.id === targetSectionId)
+      : selection.kind === "form"
         ? builder.schema.sections.at(-1)
         : builder.schema.sections.find(
             (section) => section.id === selection.sectionId,
           );
     if (!target) return;
     const field = createField(type, countFields(builder.schema) + 1);
-    updateSection(target.id, { fields: [...target.fields, field] });
+    const fields = [...target.fields];
+    fields.splice(targetIndex ?? fields.length, 0, field);
+    updateSection(target.id, { fields });
     setSelection({ kind: "field", sectionId: target.id, fieldId: field.id });
     setMode("build");
+    setNotice(`${fieldTypeLabel(field.type)} ditambahkan.`);
   }
 
   function addSection() {
@@ -442,27 +534,131 @@ export function FormBuilder() {
     if (from < 0 || to < 0 || to >= section.fields.length) return;
     const fields = [...section.fields];
     [fields[from], fields[to]] = [fields[to], fields[from]];
-    const orderedFields = builder.schema.sections.flatMap((item) =>
-      item.id === sectionId ? fields : item.fields,
+    const sections = builder.schema.sections.map((item) =>
+      item.id === sectionId ? { ...item, fields } : item,
     );
-    const order = new Map(
-      orderedFields.map((field, index) => [field.id, index]),
-    );
-    const createsBackwardCondition = orderedFields.some((field, index) => {
-      const rules = field.visibleWhen
-        ? Array.isArray(field.visibleWhen)
-          ? field.visibleWhen
-          : [field.visibleWhen]
-        : [];
-      return rules.some((rule) => (order.get(rule.fieldId) ?? -1) >= index);
-    });
-    if (createsBackwardCondition) {
+    if (hasBackwardCondition(sections)) {
       setNotice(
         "Pertanyaan pemicu harus tetap berada sebelum pertanyaan kondisional.",
       );
       return;
     }
     updateSection(sectionId, { fields });
+  }
+
+  function moveSection(sectionId: string, overSectionId: string) {
+    const from = builder.schema.sections.findIndex(
+      (section) => section.id === sectionId,
+    );
+    const to = builder.schema.sections.findIndex(
+      (section) => section.id === overSectionId,
+    );
+    if (from < 0 || to < 0 || from === to) return;
+    const sections = arrayMove(builder.schema.sections, from, to);
+    if (hasBackwardCondition(sections)) {
+      setNotice(
+        "Bagian tidak dapat dipindahkan melewati pertanyaan yang menjadi pemicu kondisi.",
+      );
+      return;
+    }
+    updateSchema({ sections });
+    setSelection({ kind: "section", sectionId });
+  }
+
+  function moveFieldTo(
+    fieldId: string,
+    sourceSectionId: string,
+    targetSectionId: string,
+    targetIndex: number,
+  ) {
+    const sourceSection = builder.schema.sections.find(
+      (section) => section.id === sourceSectionId,
+    );
+    const sourceIndex = sourceSection?.fields.findIndex(
+      (field) => field.id === fieldId,
+    );
+    if (!sourceSection || sourceIndex == null || sourceIndex < 0) return;
+    if (sourceSectionId !== targetSectionId && sourceSection.fields.length === 1) {
+      setNotice("Setiap bagian harus memiliki minimal satu pertanyaan.");
+      return;
+    }
+    const field = sourceSection.fields[sourceIndex];
+    const sections = builder.schema.sections.map((section) => {
+      if (sourceSectionId === targetSectionId && section.id === sourceSectionId) {
+        return {
+          ...section,
+          fields: arrayMove(section.fields, sourceIndex, targetIndex),
+        };
+      }
+      if (section.id === sourceSectionId) {
+        return {
+          ...section,
+          fields: section.fields.filter((item) => item.id !== fieldId),
+        };
+      }
+      if (section.id === targetSectionId) {
+        const fields = [...section.fields];
+        fields.splice(targetIndex, 0, field);
+        return { ...section, fields };
+      }
+      return section;
+    });
+    if (hasBackwardCondition(sections)) {
+      setNotice(
+        "Pertanyaan pemicu harus tetap berada sebelum pertanyaan kondisional.",
+      );
+      return;
+    }
+    updateSchema({ sections });
+    setSelection({ kind: "field", sectionId: targetSectionId, fieldId });
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveDrag((event.active.data.current as DragItemData | undefined) ?? null);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveDrag(null);
+    const active = event.active.data.current as DragItemData | undefined;
+    const over = event.over?.data.current as DragItemData | undefined;
+    if (!active || !over) return;
+
+    const targetSectionId =
+      over.type === "section" ? over.sectionId : over.type === "field" ? over.sectionId : null;
+    if (!targetSectionId) return;
+
+    if (active.type === "palette") {
+      const section = builder.schema.sections.find(
+        (item) => item.id === targetSectionId,
+      );
+      if (!section) return;
+      const targetIndex =
+        over.type === "field"
+          ? section.fields.findIndex((field) => field.id === over.fieldId)
+          : section.fields.length;
+      addField(active.fieldType, targetSectionId, Math.max(0, targetIndex));
+      return;
+    }
+
+    if (active.type === "section") {
+      moveSection(active.sectionId, targetSectionId);
+      return;
+    }
+
+    const section = builder.schema.sections.find(
+      (item) => item.id === targetSectionId,
+    );
+    if (!section) return;
+    const targetIndex =
+      over.type === "field"
+        ? section.fields.findIndex((field) => field.id === over.fieldId)
+        : section.fields.length;
+    moveFieldTo(
+      active.fieldId,
+      active.sectionId,
+      targetSectionId,
+      Math.max(0, targetIndex),
+    );
   }
 
   function removeChoiceOption(fieldId: string, optionIndex: number) {
@@ -604,243 +800,133 @@ export function FormBuilder() {
       ) : null}
 
       {mode === "build" ? (
-        <div className="grid min-w-0 items-start gap-4 p-4 xl:grid-cols-[210px_minmax(0,1fr)_260px]">
-          <aside className="flex flex-col gap-4 rounded-xl border bg-card p-4 xl:sticky xl:top-24">
-            <div className="flex flex-col gap-1 [&>span]:text-sm [&>span]:font-semibold [&_small]:text-xs [&_small]:text-muted-foreground">
-              <span>Blok pertanyaan</span>
-              <small>Klik untuk menambahkan</small>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-              {palette.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Button
-                    variant="outline"
-                    className="h-auto justify-start gap-2 whitespace-normal p-3 text-left"
-                    aria-label={`Tambah ${item.title}`}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragCancel={() => setActiveDrag(null)}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="mx-auto grid min-w-0 max-w-[1600px] items-start gap-5 p-4 xl:grid-cols-[240px_minmax(480px,760px)_300px] xl:justify-center xl:p-6">
+            <Card className="xl:sticky xl:top-24" size="sm">
+              <CardHeader>
+                <CardTitle>Blok pertanyaan</CardTitle>
+                <CardDescription>
+                  Seret ke kanvas atau klik untuk menambahkan.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                {palette.map((item) => (
+                  <PaletteBlock
+                    item={item}
                     key={item.type}
-                    onClick={() => addField(item.type)}
-                    type="button"
-                  >
-                    <Icon data-icon="inline-start" />
-                    <span className="flex min-w-0 flex-col items-start gap-1">
-                      <span>{item.title}</span>
-                      <span className="text-xs">{item.description}</span>
-                    </span>
-                    <PlusIcon data-icon="inline-start" className="ml-auto" />
-                  </Button>
-                );
-              })}
-            </div>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={addSection}
-              type="button"
-            >
-              <RowsIcon data-icon="inline-start" /> Tambah bagian
-            </Button>
-            <Alert>
-              <AlertDescription>
-                Pilih blok di kanvas, lalu atur detailnya di panel pengaturan.
-              </AlertDescription>
-            </Alert>
-          </aside>
+                    onAdd={() => addField(item.type)}
+                  />
+                ))}
+              </CardContent>
+              <CardContent className="flex flex-col gap-3 border-t pt-3">
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={addSection}
+                  type="button"
+                >
+                  <RowsIcon data-icon="inline-start" /> Tambah bagian
+                </Button>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Seret pegangan enam titik untuk mengatur urutan blok.
+                </p>
+              </CardContent>
+            </Card>
 
-          <main className="flex min-w-0 flex-col gap-4">
-            <Button
-              variant="outline"
-              className={cn(
-                "h-auto w-full flex-col items-start gap-3 whitespace-normal p-6 text-left",
-                selection.kind === "form" && "ring-2 ring-ring",
-              )}
-              onClick={() => setSelection({ kind: "form" })}
-              type="button"
-            >
-              <span className="mb-2 text-xs font-medium text-muted-foreground">
-                {builder.category}
-              </span>
-              <span>{builder.schema.title || "Formulir tanpa judul"}</span>
-              <span>
-                {builder.schema.description || "Tambahkan deskripsi formulir."}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                {builder.schema.sections.length} bagian ·{" "}
-                {countFields(builder.schema)} pertanyaan
-              </span>
-            </Button>
-
-            {builder.schema.sections.map((section, sectionIndex) => (
-              <section
+            <main className="flex min-w-0 flex-col gap-4">
+              <Card
                 className={cn(
-                  "overflow-hidden rounded-xl border bg-card",
-                  selection.kind === "section" &&
-                    selection.sectionId === section.id
-                    ? "ring-2 ring-ring"
-                    : "",
+                  "relative cursor-pointer transition-[box-shadow,transform] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] has-focus-visible:ring-2 has-focus-visible:ring-ring active:scale-[0.99] motion-reduce:transform-none motion-reduce:transition-none",
+                  selection.kind === "form" && "ring-2 ring-ring",
                 )}
-                key={section.id}
               >
-                {!isContinuous ? (
-                  <Button
-                    variant="ghost"
-                    className="h-auto w-full justify-start gap-3 whitespace-normal p-4 text-left"
-                    onClick={() =>
+                <button
+                  aria-label="Pilih pengaturan formulir"
+                  className="absolute inset-0 outline-none"
+                  onClick={() => setSelection({ kind: "form" })}
+                  type="button"
+                />
+                <CardHeader>
+                  <Badge className="mb-2 w-fit" variant="outline">
+                    {builder.category}
+                  </Badge>
+                  <CardTitle className="text-xl">
+                    {builder.schema.title || "Formulir tanpa judul"}
+                  </CardTitle>
+                  <CardDescription className="max-w-2xl">
+                    {builder.schema.description ||
+                      "Tambahkan deskripsi formulir."}
+                  </CardDescription>
+                  <CardAction>
+                    <Badge variant="secondary">
+                      {countFields(builder.schema)} pertanyaan
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+              </Card>
+
+              <SortableContext
+                items={builder.schema.sections.map((section) =>
+                  sectionDragId(section.id),
+                )}
+                strategy={verticalListSortingStrategy}
+              >
+                {builder.schema.sections.map((section, sectionIndex) => (
+                  <BuilderCanvasSection
+                    activeSelection={selection}
+                    fieldMap={fieldMap}
+                    isContinuous={isContinuous}
+                    key={section.id}
+                    onDuplicateField={duplicateField}
+                    onMoveField={moveField}
+                    onRemoveField={removeField}
+                    onSelectField={(fieldId) =>
+                      setSelection({
+                        kind: "field",
+                        sectionId: section.id,
+                        fieldId,
+                      })
+                    }
+                    onSelectSection={() =>
                       setSelection({ kind: "section", sectionId: section.id })
                     }
-                    type="button"
-                  >
-                    <span>
-                      {(sectionIndex + 1).toString().padStart(2, "0")}
-                    </span>
-                    <div>
-                      <small>{section.eyebrow}</small>
-                      <h2>{section.title}</h2>
-                      <p>{section.description}</p>
-                    </div>
-                    <b>{section.fields.length} item</b>
-                  </Button>
-                ) : (
-                  <div className="flex flex-wrap justify-between gap-2 border-b bg-muted p-4 text-xs text-muted-foreground">
-                    <span>Alur kontinu</span>
-                    <small>
-                      {section.fields.length} pertanyaan tanpa pembatas bagian
-                    </small>
-                  </div>
-                )}
-                <div className="flex flex-col gap-2 p-3">
-                  {section.fields.map((field, fieldIndex) => {
-                    const active =
-                      selection.kind === "field" &&
-                      selection.fieldId === field.id;
-                    return (
-                      <article
-                        className={cn(
-                          "rounded-lg border border-transparent",
-                          field.visibleWhen
-                            ? "ml-4 border-l-2 border-l-primary sm:ml-8"
-                            : "",
-                          active ? "ring-2 ring-ring" : "",
-                        )}
-                        key={field.id}
-                      >
-                        <Button
-                          variant="ghost"
-                          className="h-auto w-full items-start justify-start gap-3 whitespace-normal p-3 text-left"
-                          onClick={() =>
-                            setSelection({
-                              kind: "field",
-                              sectionId: section.id,
-                              fieldId: field.id,
-                            })
-                          }
-                          type="button"
-                        >
-                          <DotsSixVerticalIcon
-                            data-icon="inline-start"
-                            className="shrink-0 text-muted-foreground"
-                          />
-                          <span className="text-xs text-muted-foreground">
-                            {field.number ||
-                              (fieldIndex + 1).toString().padStart(2, "0")}
-                          </span>
-                          <div className="flex min-w-0 flex-col gap-2 [&_h3]:font-medium [&_p]:text-xs [&_p]:text-muted-foreground">
-                            <span className="text-xs text-muted-foreground">
-                              {fieldTypeLabel(field.type)}
-                            </span>
-                            {firstVisibilityRule(field) ? (
-                              <ConditionBadge
-                                field={field}
-                                fieldMap={fieldMap}
-                              />
-                            ) : null}
-                            <h3>{field.label}</h3>
-                            {field.description ? (
-                              <p>{field.description}</p>
-                            ) : null}
-                          </div>
-                          {field.required ? (
-                            <Badge variant="secondary">Wajib</Badge>
-                          ) : null}
-                        </Button>
-                        <div className="px-3 pb-3">
-                          <FieldMock field={field} />
-                        </div>
-                        {active ? (
-                          <div className="flex justify-end gap-1 border-t p-1">
-                            <Button
-                              variant="outline"
-                              aria-label="Naikkan pertanyaan"
-                              disabled={fieldIndex === 0}
-                              onClick={() =>
-                                moveField(section.id, field.id, -1)
-                              }
-                              type="button"
-                            >
-                              <ArrowUpIcon data-icon="inline-start" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              aria-label="Turunkan pertanyaan"
-                              disabled={
-                                fieldIndex === section.fields.length - 1
-                              }
-                              onClick={() => moveField(section.id, field.id, 1)}
-                              type="button"
-                            >
-                              <ArrowDownIcon data-icon="inline-start" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              aria-label="Duplikat pertanyaan"
-                              onClick={() =>
-                                duplicateField(section.id, field.id)
-                              }
-                              type="button"
-                            >
-                              <CopyIcon data-icon="inline-start" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              aria-label="Hapus pertanyaan"
-                              onClick={() => removeField(section.id, field.id)}
-                              type="button"
-                            >
-                              <TrashIcon data-icon="inline-start" />
-                            </Button>
-                          </div>
-                        ) : null}
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
-            {!isContinuous ? (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={addSection}
-                type="button"
-              >
-                <PlusIcon data-icon="inline-start" /> Tambah bagian berikutnya
-              </Button>
-            ) : null}
-          </main>
+                    reducedMotion={reducedMotion}
+                    section={section}
+                    sectionIndex={sectionIndex}
+                  />
+                ))}
+              </SortableContext>
+              {!isContinuous ? (
+                <Button
+                  variant="outline"
+                  className="h-10 w-full border-dashed"
+                  onClick={addSection}
+                  type="button"
+                >
+                  <PlusIcon data-icon="inline-start" /> Tambah bagian berikutnya
+                </Button>
+              ) : null}
+            </main>
 
-          <aside className="min-w-0 rounded-xl border bg-card xl:sticky xl:top-24 xl:max-h-[calc(100svh-7rem)] xl:overflow-y-auto">
-            <div className="flex flex-col gap-1 [&>span]:text-sm [&>span]:font-semibold [&_small]:text-xs [&_small]:text-muted-foreground border-b p-4">
-              <span>
-                <GearIcon size={16} /> Pengaturan
-              </span>
-              <small>
+            <aside className="min-w-0 rounded-lg border bg-card shadow-sm xl:sticky xl:top-24 xl:max-h-[calc(100svh-7rem)] xl:overflow-y-auto">
+              <CardHeader className="border-b bg-muted/30">
+                <CardTitle className="flex items-center gap-2">
+                  <GearIcon /> Pengaturan
+                </CardTitle>
+                <CardDescription>
                 {selection.kind === "form"
-                  ? "Formulir"
+                  ? "Atur identitas dan struktur formulir"
                   : selection.kind === "section"
-                    ? "Bagian"
-                    : "Pertanyaan"}
-              </small>
-            </div>
+                    ? "Atur bagian yang sedang dipilih"
+                    : "Atur pertanyaan yang sedang dipilih"}
+                </CardDescription>
+              </CardHeader>
             {selection.kind === "form" ? (
               <FieldGroup className="p-4">
                 <div className="flex flex-col gap-3">
@@ -946,11 +1032,6 @@ export function FormBuilder() {
                   type="button"
                 >
                   <TrashIcon data-icon="inline-start" /> Hapus bagian
-                  <small>
-                    {builder.schema.sections.length === 1
-                      ? "Pertanyaan tetap disimpan sebagai formulir kontinu"
-                      : "Semua pertanyaan di dalamnya ikut dihapus"}
-                  </small>
                 </Button>
               </FieldGroup>
             ) : null}
@@ -1181,12 +1262,374 @@ export function FormBuilder() {
                 </label>
               </FieldGroup>
             ) : null}
-          </aside>
-        </div>
+            </aside>
+          </div>
+          <DragOverlay
+            dropAnimation={
+              reducedMotion
+                ? null
+                : {
+                    duration: 200,
+                    easing: "cubic-bezier(0.23, 1, 0.32, 1)",
+                  }
+            }
+          >
+            {activeDrag ? <BuilderDragOverlay item={activeDrag} /> : null}
+          </DragOverlay>
+        </DndContext>
       ) : (
         <Preview builder={builder} />
       )}
     </div>
+  );
+}
+
+function PaletteBlock({
+  item,
+  onAdd,
+}: {
+  item: (typeof palette)[number];
+  onAdd: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: paletteDragId(item.type),
+    data: {
+      type: "palette",
+      fieldType: item.type,
+      label: item.title,
+    } satisfies DragItemData,
+  });
+  const Icon = item.icon;
+
+  return (
+    <Button
+      ref={setNodeRef}
+      variant="outline"
+      className={cn(
+        "h-auto min-h-14 cursor-grab justify-start gap-3 whitespace-normal p-3 text-left transition-[transform,opacity,box-shadow] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] active:cursor-grabbing active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none",
+        isDragging && "opacity-40",
+      )}
+      aria-label={`Seret atau klik untuk menambah ${item.title}`}
+      onClick={onAdd}
+      type="button"
+      {...attributes}
+      {...listeners}
+    >
+      <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+        <Icon />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+        <span>{item.title}</span>
+        <span className="text-xs font-normal text-muted-foreground">
+          {item.description}
+        </span>
+      </span>
+      <DotsSixVerticalIcon className="text-muted-foreground" />
+    </Button>
+  );
+}
+
+function BuilderCanvasSection({
+  section,
+  sectionIndex,
+  isContinuous,
+  activeSelection,
+  fieldMap,
+  reducedMotion,
+  onSelectSection,
+  onSelectField,
+  onMoveField,
+  onDuplicateField,
+  onRemoveField,
+}: {
+  section: FormSection;
+  sectionIndex: number;
+  isContinuous: boolean;
+  activeSelection: Selection;
+  fieldMap: Map<string, FormField>;
+  reducedMotion: boolean;
+  onSelectSection: () => void;
+  onSelectField: (fieldId: string) => void;
+  onMoveField: (sectionId: string, fieldId: string, direction: -1 | 1) => void;
+  onDuplicateField: (sectionId: string, fieldId: string) => void;
+  onRemoveField: (sectionId: string, fieldId: string) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: sectionDragId(section.id),
+    data: {
+      type: "section",
+      sectionId: section.id,
+      label: section.title,
+    } satisfies DragItemData,
+    transition: reducedMotion
+      ? null
+      : { duration: 200, easing: "cubic-bezier(0.77, 0, 0.175, 1)" },
+  });
+
+  return (
+    <Card
+      ref={setNodeRef}
+      className={cn(
+        "overflow-visible transition-[box-shadow,opacity] duration-150",
+        activeSelection.kind === "section" &&
+          activeSelection.sectionId === section.id &&
+          "ring-2 ring-ring",
+        isDragging && "opacity-30",
+      )}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      {!isContinuous ? (
+        <CardHeader className="grid grid-cols-[auto_1fr_auto] items-center gap-3 border-b bg-muted/30">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="cursor-grab touch-none active:cursor-grabbing"
+            aria-label={`Seret untuk memindahkan bagian ${section.title}`}
+            type="button"
+            {...attributes}
+            {...listeners}
+          >
+            <DotsSixVerticalIcon />
+          </Button>
+          <button
+            className="min-w-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            onClick={onSelectSection}
+            type="button"
+          >
+            <span className="mb-1 block text-[0.625rem] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              {section.eyebrow || `Bagian ${sectionIndex + 1}`}
+            </span>
+            <CardTitle className="truncate">{section.title}</CardTitle>
+            {section.description ? (
+              <CardDescription className="mt-1 line-clamp-2">
+                {section.description}
+              </CardDescription>
+            ) : null}
+          </button>
+          <Badge variant="outline">{section.fields.length} blok</Badge>
+        </CardHeader>
+      ) : (
+        <CardHeader className="border-b bg-muted/30">
+          <CardTitle>Alur pertanyaan</CardTitle>
+          <CardDescription>
+            {section.fields.length} pertanyaan tanpa pembatas bagian
+          </CardDescription>
+        </CardHeader>
+      )}
+      <CardContent className="flex flex-col gap-2">
+        <SortableContext
+          items={section.fields.map((field) => fieldDragId(field.id))}
+          strategy={verticalListSortingStrategy}
+        >
+          {section.fields.map((field, fieldIndex) => (
+            <BuilderQuestionBlock
+              active={
+                activeSelection.kind === "field" &&
+                activeSelection.fieldId === field.id
+              }
+              field={field}
+              fieldIndex={fieldIndex}
+              fieldMap={fieldMap}
+              key={field.id}
+              onDuplicate={() => onDuplicateField(section.id, field.id)}
+              onMove={(direction) =>
+                onMoveField(section.id, field.id, direction)
+              }
+              onRemove={() => onRemoveField(section.id, field.id)}
+              onSelect={() => onSelectField(field.id)}
+              reducedMotion={reducedMotion}
+              sectionId={section.id}
+              totalFields={section.fields.length}
+            />
+          ))}
+        </SortableContext>
+      </CardContent>
+    </Card>
+  );
+}
+
+function BuilderQuestionBlock({
+  sectionId,
+  field,
+  fieldIndex,
+  totalFields,
+  fieldMap,
+  active,
+  reducedMotion,
+  onSelect,
+  onMove,
+  onDuplicate,
+  onRemove,
+}: {
+  sectionId: string;
+  field: FormField;
+  fieldIndex: number;
+  totalFields: number;
+  fieldMap: Map<string, FormField>;
+  active: boolean;
+  reducedMotion: boolean;
+  onSelect: () => void;
+  onMove: (direction: -1 | 1) => void;
+  onDuplicate: () => void;
+  onRemove: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: fieldDragId(field.id),
+    data: {
+      type: "field",
+      sectionId,
+      fieldId: field.id,
+      label: field.label,
+    } satisfies DragItemData,
+    transition: reducedMotion
+      ? null
+      : { duration: 200, easing: "cubic-bezier(0.77, 0, 0.175, 1)" },
+  });
+
+  return (
+    <Card
+      ref={setNodeRef}
+      size="sm"
+      className={cn(
+        "overflow-visible bg-background transition-[box-shadow,opacity] duration-150",
+        field.visibleWhen && "ml-4 border-l-2 border-l-primary sm:ml-7",
+        active && "ring-2 ring-ring",
+        isDragging && "opacity-30",
+      )}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      <CardHeader className="grid grid-cols-[auto_auto_1fr_auto] items-start gap-2">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+          aria-label={`Seret untuk memindahkan pertanyaan ${field.label}`}
+          type="button"
+          {...attributes}
+          {...listeners}
+        >
+          <DotsSixVerticalIcon />
+        </Button>
+        <span className="pt-1 font-mono text-[0.625rem] text-muted-foreground">
+          {field.number || (fieldIndex + 1).toString().padStart(2, "0")}
+        </span>
+        <button
+          className="min-w-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+          onClick={onSelect}
+          type="button"
+        >
+          <span className="mb-1 block text-[0.625rem] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            {fieldTypeLabel(field.type)}
+          </span>
+          <CardTitle className="leading-snug">{field.label}</CardTitle>
+          {field.description ? (
+            <CardDescription className="mt-1 line-clamp-2">
+              {field.description}
+            </CardDescription>
+          ) : null}
+        </button>
+        {field.required ? <Badge variant="secondary">Wajib</Badge> : null}
+      </CardHeader>
+      {firstVisibilityRule(field) ? (
+        <CardContent>
+          <ConditionBadge field={field} fieldMap={fieldMap} />
+        </CardContent>
+      ) : null}
+      <CardContent>
+        <FieldMock field={field} />
+      </CardContent>
+      {active ? (
+        <CardFooter className="justify-between gap-2 border-t bg-muted/20">
+          <span className="text-xs text-muted-foreground">
+            Gunakan pegangan untuk menyeret
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Naikkan pertanyaan"
+              disabled={fieldIndex === 0}
+              onClick={() => onMove(-1)}
+              type="button"
+            >
+              <ArrowUpIcon />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Turunkan pertanyaan"
+              disabled={fieldIndex === totalFields - 1}
+              onClick={() => onMove(1)}
+              type="button"
+            >
+              <ArrowDownIcon />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Duplikat pertanyaan"
+              onClick={onDuplicate}
+              type="button"
+            >
+              <CopyIcon />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Hapus pertanyaan"
+              onClick={onRemove}
+              type="button"
+            >
+              <TrashIcon />
+            </Button>
+          </div>
+        </CardFooter>
+      ) : null}
+    </Card>
+  );
+}
+
+function BuilderDragOverlay({ item }: { item: DragItemData }) {
+  const label = item.label;
+  return (
+    <Card
+      size="sm"
+      className="w-72 rotate-1 shadow-xl ring-2 ring-primary/20"
+    >
+      <CardHeader className="grid grid-cols-[auto_1fr] items-center gap-2">
+        <DotsSixVerticalIcon className="text-muted-foreground" />
+        <div>
+          <CardDescription>
+            {item.type === "section"
+              ? "Bagian"
+              : item.type === "palette"
+                ? "Blok baru"
+                : "Pertanyaan"}
+          </CardDescription>
+          <CardTitle className="line-clamp-2">{label}</CardTitle>
+        </div>
+      </CardHeader>
+    </Card>
   );
 }
 

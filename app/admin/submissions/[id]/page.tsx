@@ -9,7 +9,7 @@ import { id as idLocale } from "date-fns/locale";
 
 import { AnswersView } from "@/components/forms/answers-view";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { getSubmission, recordSubmissionAccess } from "@/lib/data/submissions";
 import type { FormAnswers } from "@/lib/forms/types";
 
@@ -23,7 +23,10 @@ export default async function SubmissionDetailPage({
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-4 md:p-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link href="/admin/submissions">
+        <Link
+          href="/admin/submissions"
+          className={buttonVariants({ variant: "link" })}
+        >
           <ArrowLeftIcon size={17} /> Riwayat
         </Link>
         <div className="flex flex-wrap gap-2">
@@ -44,7 +47,13 @@ export default async function SubmissionDetailPage({
             nativeButton={false}
             role="link"
             className="h-10 px-4"
-            render={<a href={`/admin/submissions/${submission.id}/print`} target="_blank" rel="noopener noreferrer" />}
+            render={
+              <a
+                href={`/admin/submissions/${submission.id}/print`}
+                target="_blank"
+                rel="noopener noreferrer"
+              />
+            }
           >
             <PrinterIcon data-icon="inline-start" /> Cetak
           </Button>
@@ -53,9 +62,8 @@ export default async function SubmissionDetailPage({
       <article className="overflow-hidden rounded-xl border bg-card">
         <header className="flex items-start justify-between gap-4 border-b p-6 [&_h1]:text-2xl [&_h1]:font-semibold">
           <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground">
-              {submission.formVersion.form.category} · Versi{" "}
-              {submission.formVersion.version}
+            <p className="text-xs font-medium text-muted-foreground">
+              {submission.formVersion.form.category}
             </p>
             <h1>{submission.formVersion.form.title}</h1>
           </div>

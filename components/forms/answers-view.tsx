@@ -72,15 +72,7 @@ export function AnswersView({
       {schema.sections.map((section, sectionIndex) => (
         <section className="break-inside-avoid" key={section.id}>
           {schema.layout !== "continuous" ? (
-            <div className="mb-5 flex items-start gap-3 [&_h2]:text-lg [&_h2]:font-semibold [&_p]:text-sm [&_p]:text-muted-foreground [&>span]:text-muted-foreground">
-              <span>{(sectionIndex + 1).toString().padStart(2, "0")}</span>
-              <div>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                  {section.eyebrow}
-                </p>
-                <h2>{section.title}</h2>
-              </div>
-            </div>
+            <h2 className="font-bold">{section.title}</h2>
           ) : null}
           <dl>
             {section.fields.map((field) =>
@@ -89,10 +81,7 @@ export function AnswersView({
                   className="grid gap-2 border-b py-3 sm:grid-cols-2 [&_dt]:flex [&_dt]:gap-2 [&_dt]:text-sm [&_dt]:text-muted-foreground [&_dd]:text-sm"
                   key={field.id}
                 >
-                  <dt>
-                    {field.number ? <b>{field.number}</b> : null}
-                    {field.label}
-                  </dt>
+                  <dt>{field.label}</dt>
                   <dd>
                     <AnswerValue answers={answers} field={field} />
                   </dd>

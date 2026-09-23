@@ -199,7 +199,6 @@ export function FormFiller({
           <ArrowLeftIcon data-icon="inline-start" /> Kembali
         </Button>
         <div className="flex flex-col gap-3 [&_h2]:text-lg [&_h2]:font-semibold">
-          <Badge variant="secondary">Versi {version}</Badge>
           <h2>{schema.shortTitle}</h2>
         </div>
         <div className="py-3">
@@ -229,7 +228,7 @@ export function FormFiller({
       <div className="min-w-0 flex flex-col gap-6">
         <header className="flex flex-col gap-2 [&_h1]:text-3xl [&_h1]:font-semibold [&>p]:text-sm [&>p]:text-muted-foreground">
           <p className="mb-2 text-xs font-medium text-muted-foreground">
-            Formulir klinis / Versi {version}
+            Formulir klinis
           </p>
           <h1>{schema.title}</h1>
           <p>{schema.description}</p>
@@ -240,9 +239,8 @@ export function FormFiller({
           aria-labelledby="patient-title"
         >
           <div className="mb-5 flex items-start gap-3 [&_h2]:text-lg [&_h2]:font-semibold [&_p]:text-sm [&_p]:text-muted-foreground [&>span]:text-muted-foreground">
-            <span>00</span>
             <div>
-              <p className="mb-2 text-xs font-medium text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 Identitas
               </p>
               <h2 id="patient-title">Konteks pasien</h2>
@@ -296,11 +294,7 @@ export function FormFiller({
           >
             {!isContinuous ? (
               <div className="mb-5 flex items-start gap-3 [&_h2]:text-lg [&_h2]:font-semibold [&_p]:text-sm [&_p]:text-muted-foreground [&>span]:text-muted-foreground">
-                <span>{(sectionIndex + 1).toString().padStart(2, "0")}</span>
                 <div>
-                  <p className="mb-2 text-xs font-medium text-muted-foreground">
-                    {section.eyebrow}
-                  </p>
                   <h2>{section.title}</h2>
                   {section.description ? <p>{section.description}</p> : null}
                 </div>

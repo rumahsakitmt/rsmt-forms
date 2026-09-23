@@ -25,9 +25,6 @@ type FieldRendererProps = {
 function FieldHeader({ field }: { field: FormField }) {
   return (
     <div className="mb-3 flex items-start gap-3 [&_h3]:text-sm [&_h3]:font-medium [&_p]:mt-1 [&_p]:text-xs [&_p]:text-muted-foreground">
-      {field.number ? (
-        <span className="text-sm text-muted-foreground">{field.number}</span>
-      ) : null}
       <div>
         <h3>
           {field.label}
