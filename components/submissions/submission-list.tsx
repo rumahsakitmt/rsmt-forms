@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowUpRightIcon,
+  DownloadSimpleIcon,
   FileTextIcon,
   FunnelIcon,
   PencilIcon,
@@ -249,6 +250,16 @@ export function SubmissionList({
                               aria-label={`Cetak formulir ${submission.patientName || "tanpa nama"}`}
                             >
                               <PrinterIcon data-icon="inline-start" />
+                            </Button>
+                            <Button
+                              nativeButton={false}
+                              role="link"
+                              variant="ghost"
+                              size="icon"
+                              render={<a href={`${printHref}?download=1`} download />}
+                              aria-label={`Unduh PDF ${submission.patientName || "tanpa nama"}`}
+                            >
+                              <DownloadSimpleIcon data-icon="inline-start" />
                             </Button>
                           </div>
                         </TableCell>

@@ -41,5 +41,9 @@ describe("SubmissionList", () => {
 
     expect(printLink).toHaveAttribute("href", expectedHref);
     expect(printLink).toHaveAttribute("target", "_blank");
+
+    expect(
+      screen.getByRole("link", { name: "Unduh PDF Budi Santoso" }),
+    ).toHaveAttribute("href", `${expectedHref}?download=1`);
   });
 });

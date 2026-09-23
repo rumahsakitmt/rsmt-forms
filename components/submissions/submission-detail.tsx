@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowLeftIcon,
+  DownloadSimpleIcon,
   PencilSimpleIcon,
   PrinterIcon,
 } from "@phosphor-icons/react/dist/ssr";
@@ -65,6 +66,15 @@ export function SubmissionDetail({ submission, context }: SubmissionDetailProps)
               Lanjutkan draft
             </Button>
           ) : null}
+          <Button
+            nativeButton={false}
+            role="link"
+            variant="outline"
+            render={<a href={`${printHref}?download=1`} download />}
+          >
+            <DownloadSimpleIcon data-icon="inline-start" />
+            Unduh PDF
+          </Button>
           <Button
             nativeButton={false}
             role="link"

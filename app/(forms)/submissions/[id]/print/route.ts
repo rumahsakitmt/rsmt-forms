@@ -3,12 +3,13 @@ import { renderDocument } from "@formepdf/core";
 
 import { getSubmission, recordSubmissionAccess } from "@/lib/data/submissions";
 import type { FormAnswers } from "@/lib/forms/types";
+import { pdfContentDisposition } from "@/lib/pdf/response";
 import { SubmissionDocument } from "@/lib/pdf/submission-document";
 
 export const runtime = "nodejs";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -26,7 +27,7 @@ export async function GET(
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${filename}"`,
+      "Content-Disposition": pdfContentDisposition(request, filename),
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

@@ -17,7 +17,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "auth:create-admin": "bunx auth@latest create-admin --config lib/auth.ts"
+    "auth:create-admin": "bunx auth@latest create-admin --config lib/auth.ts --role ADMIN"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
