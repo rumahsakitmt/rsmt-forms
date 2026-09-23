@@ -20,6 +20,7 @@ export default async function NewFormPage({
         version={submission.formVersion.version}
         draft={{
           id: submission.id,
+          status: submission.status,
           patient: {
             patientName: submission.patientName,
             medicalRecordNumber: submission.medicalRecordNumber,

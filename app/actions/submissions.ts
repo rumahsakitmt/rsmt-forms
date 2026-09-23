@@ -24,6 +24,11 @@ export type SaveSubmissionResult = {
   errors?: Record<string, string>;
 };
 
+export type DeleteSubmissionResult = {
+  success: boolean;
+  message: string;
+};
+
 export async function saveSubmissionAction(
   input: SaveSubmissionInput,
 ): Promise<SaveSubmissionResult> {
@@ -41,11 +46,11 @@ export async function saveSubmissionAction(
   }
 
   if (existing) {
-    if (existing.status !== "DRAFT") {
-      return { success: false, message: "Formulir yang sudah dikirim tidak dapat diubah." };
-    }
     if (existing.createdById !== staff.id && staff.role !== "ADMIN") {
-      return { success: false, message: "Anda tidak memiliki akses untuk mengubah draft ini." };
+      return {
+        success: false,
+        message: "Anda tidak memiliki akses untuk mengubah formulir ini.",
+      };
     }
     if (existing.formVersion.form.slug !== input.formSlug) {
       return { success: false, message: "Jenis formulir tidak sesuai." };
@@ -68,20 +73,27 @@ export async function saveSubmissionAction(
     medicalRecordNumber: input.patient.medicalRecordNumber.trim(),
     room: input.patient.room.trim(),
   };
-  const validation = validateSubmission(schema, patient, input.answers, input.mode);
+  const effectiveMode =
+    existing?.status === "SUBMITTED" ? "submit" : input.mode;
+  const validation = validateSubmission(
+    schema,
+    patient,
+    input.answers,
+    effectiveMode,
+  );
 
   if (!validation.valid) {
     return {
       success: false,
       message:
-        input.mode === "submit"
+        effectiveMode === "submit"
           ? "Periksa kembali bagian yang belum lengkap."
           : "Beberapa jawaban belum dapat disimpan.",
       errors: validation.errors,
     };
   }
 
-  const status = input.mode === "submit" ? "SUBMITTED" : "DRAFT";
+  const status = effectiveMode === "submit" ? "SUBMITTED" : "DRAFT";
   const now = new Date();
   const answersJson = input.answers as unknown as Prisma.InputJsonValue;
 
@@ -96,13 +108,17 @@ export async function saveSubmissionAction(
           answersJson,
           status,
           updatedById: staff.id,
-          submittedAt: status === "SUBMITTED" ? now : null,
+          submittedAt:
+            status === "SUBMITTED" ? (existing.submittedAt ?? now) : null,
         },
       });
       await tx.auditEvent.create({
         data: {
           actorId: staff.id,
-          action: status === "SUBMITTED" ? "SUBMIT" : "UPDATE",
+          action:
+            existing.status === "DRAFT" && status === "SUBMITTED"
+              ? "SUBMIT"
+              : "UPDATE",
           entityId: updated.id,
           submissionId: updated.id,
         },
@@ -154,6 +170,64 @@ export async function saveSubmissionAction(
     success: true,
     submissionId: submission.id,
     status,
-    message: status === "SUBMITTED" ? "Formulir berhasil dikirim." : "Draft berhasil disimpan.",
+    message:
+      existing?.status === "SUBMITTED"
+        ? "Perubahan formulir berhasil disimpan."
+        : status === "SUBMITTED"
+          ? "Formulir berhasil dikirim."
+          : "Draft berhasil disimpan.",
   };
+}
+
+export async function deleteSubmissionAction(
+  submissionId: string,
+): Promise<DeleteSubmissionResult> {
+  const staff = await requireStaff();
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    select: {
+      id: true,
+      status: true,
+      formVersionId: true,
+      createdById: true,
+    },
+  });
+
+  if (!submission) {
+    return { success: false, message: "Formulir tidak ditemukan." };
+  }
+  if (staff.role !== "ADMIN" && submission.createdById !== staff.id) {
+    return {
+      success: false,
+      message: "Anda tidak memiliki akses untuk menghapus formulir ini.",
+    };
+  }
+
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.submission.delete({ where: { id: submission.id } });
+      await tx.auditEvent.create({
+        data: {
+          actorId: staff.id,
+          action: "DELETE",
+          entityId: submission.id,
+          metadataJson: {
+            status: submission.status,
+            formVersionId: submission.formVersionId,
+          },
+        },
+      });
+    });
+  } catch {
+    return {
+      success: false,
+      message: "Formulir tidak dapat dihapus. Silakan coba lagi.",
+    };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/submissions");
+  revalidatePath("/admin/submissions");
+
+  return { success: true, message: "Data formulir berhasil dihapus." };
 }

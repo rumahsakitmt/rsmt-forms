@@ -108,10 +108,9 @@ export async function getSubmission(
 
   if (!submission) notFound();
   if (
-    (access === "staff" &&
+    access === "staff" &&
       staff.role !== "ADMIN" &&
-      submission.createdById !== staff.id) ||
-    (mode === "edit" && submission.status !== "DRAFT")
+      submission.createdById !== staff.id
   ) {
     notFound();
   }

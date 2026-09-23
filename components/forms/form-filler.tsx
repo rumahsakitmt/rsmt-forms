@@ -46,6 +46,7 @@ import { FieldRenderer } from "./field-renderer";
 
 type DraftData = {
   id: string;
+  status: "DRAFT" | "SUBMITTED";
   patient: PatientContext;
   answers: FormAnswers;
 };
@@ -86,6 +87,7 @@ export function FormFiller({
   );
   const [pending, startTransition] = useTransition();
   const isContinuous = schema.layout === "continuous";
+  const isSubmittedEdit = draft?.status === "SUBMITTED";
 
   const progress = useMemo(() => {
     const requiredFields = schema.sections.flatMap((section) =>
@@ -145,6 +147,9 @@ export function FormFiller({
               ? `/admin/submissions/${result.submissionId}`
               : `/admin/submissions/${result.submissionId}/edit`,
           );
+          router.refresh();
+        } else if (isSubmittedEdit) {
+          router.push(`/submissions/${result.submissionId}`);
           router.refresh();
         } else if (result.status === "SUBMITTED") {
           setSubmitted(true);
@@ -296,27 +301,32 @@ export function FormFiller({
               )}
               aria-live="polite"
             >
-              {message || "Simpan sebagai draft jika formulir belum lengkap."}
+              {message ||
+                (isSubmittedEdit
+                  ? "Perubahan akan disimpan tanpa mengubah status terkirim."
+                  : "Simpan sebagai draft jika formulir belum lengkap.")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              className="h-10 px-4"
-              variant="outline"
-              disabled={pending}
-              type="button"
-              onClick={() => save("draft")}
-            >
-              {pending && pendingIntent === "draft" ? (
-                <SpinnerGapIcon
-                  data-icon="inline-start"
-                  className="animate-spin motion-reduce:animate-none"
-                />
-              ) : (
-                <FloppyDiskIcon data-icon="inline-start" />
-              )}
-              Simpan draft
-            </Button>
+            {!isSubmittedEdit ? (
+              <Button
+                className="h-10 px-4"
+                variant="outline"
+                disabled={pending}
+                type="button"
+                onClick={() => save("draft")}
+              >
+                {pending && pendingIntent === "draft" ? (
+                  <SpinnerGapIcon
+                    data-icon="inline-start"
+                    className="animate-spin motion-reduce:animate-none"
+                  />
+                ) : (
+                  <FloppyDiskIcon data-icon="inline-start" />
+                )}
+                Simpan draft
+              </Button>
+            ) : null}
             <Button
               className="h-10 px-4"
               disabled={pending}
@@ -331,7 +341,10 @@ export function FormFiller({
               ) : (
                 <PaperPlaneTiltIcon data-icon="inline-start" />
               )}
-              Kirim formulir <CaretRightIcon data-icon="inline-start" />
+              {isSubmittedEdit ? "Simpan perubahan" : "Kirim formulir"}
+              {!isSubmittedEdit ? (
+                <CaretRightIcon data-icon="inline-start" />
+              ) : null}
             </Button>
           </div>
         </footer>

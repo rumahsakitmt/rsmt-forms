@@ -15,6 +15,7 @@ export default async function EditSubmissionPage({
       admin
       draft={{
         id: submission.id,
+        status: submission.status,
         patient: {
           patientName: submission.patientName,
           medicalRecordNumber: submission.medicalRecordNumber,

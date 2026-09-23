@@ -9,6 +9,7 @@ import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
 import { AnswersView } from "@/components/forms/answers-view";
+import { SubmissionDeleteButton } from "@/components/submissions/submission-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { FormAnswers, FormSchema } from "@/lib/forms/types";
@@ -55,17 +56,17 @@ export function SubmissionDetail({ submission, context }: SubmissionDetailProps)
           Riwayat
         </Link>
         <div className="flex flex-wrap gap-2">
-          {submission.status === "DRAFT" ? (
-            <Button
-              nativeButton={false}
-              role="link"
-              variant="outline"
-              render={<Link href={editHref} />}
-            >
-              <PencilSimpleIcon data-icon="inline-start" />
-              Lanjutkan draft
-            </Button>
-          ) : null}
+          <Button
+            nativeButton={false}
+            role="link"
+            variant="outline"
+            render={<Link href={editHref} />}
+          >
+            <PencilSimpleIcon data-icon="inline-start" />
+            {submission.status === "DRAFT"
+              ? "Lanjutkan draft"
+              : "Edit formulir"}
+          </Button>
           <Button
             nativeButton={false}
             role="link"
@@ -85,6 +86,13 @@ export function SubmissionDetail({ submission, context }: SubmissionDetailProps)
             <PrinterIcon data-icon="inline-start" />
             Cetak
           </Button>
+          <SubmissionDeleteButton
+            submissionId={submission.id}
+            patientName={submission.patientName}
+            formTitle={submission.formVersion.form.title}
+            redirectTo={backHref}
+            showLabel
+          />
         </div>
       </div>
       <article className="overflow-hidden rounded-xl border bg-card">

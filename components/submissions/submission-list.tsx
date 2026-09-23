@@ -10,6 +10,7 @@ import {
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
+import { SubmissionDeleteButton } from "@/components/submissions/submission-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -173,14 +174,14 @@ export function SubmissionList({
                 </TableHeader>
                 <TableBody>
                   {submissions.map((submission) => {
-                    const href =
-                      submission.status === "DRAFT"
-                        ? context === "admin"
-                          ? `/admin/submissions/${submission.id}/edit`
-                          : `/forms/${submission.formVersion.form.slug}/new?draft=${submission.id}`
-                        : context === "admin"
-                          ? `/admin/submissions/${submission.id}`
-                          : `/submissions/${submission.id}`;
+                    const viewHref =
+                      context === "admin"
+                        ? `/admin/submissions/${submission.id}`
+                        : `/submissions/${submission.id}`;
+                    const editHref =
+                      context === "admin"
+                        ? `/admin/submissions/${submission.id}/edit`
+                        : `/forms/${submission.formVersion.form.slug}/new?draft=${submission.id}`;
                     const printHref =
                       context === "admin"
                         ? `/admin/submissions/${submission.id}/print`
@@ -217,23 +218,31 @@ export function SubmissionList({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-end gap-1">
+                            {submission.status === "SUBMITTED" ? (
+                              <Button
+                                nativeButton={false}
+                                role="link"
+                                variant="ghost"
+                                size="icon"
+                                render={<Link href={viewHref} />}
+                                aria-label={`Lihat formulir ${
+                                  submission.patientName || "tanpa nama"
+                                }`}
+                              >
+                                <ArrowUpRightIcon data-icon="inline-start" />
+                              </Button>
+                            ) : null}
                             <Button
                               nativeButton={false}
                               role="link"
                               variant="ghost"
                               size="icon"
-                              render={<Link href={href} />}
-                              aria-label={
-                                submission.status === "DRAFT"
-                                  ? "Lanjutkan draft"
-                                  : "Lihat formulir"
-                              }
+                              render={<Link href={editHref} />}
+                              aria-label={`Edit formulir ${
+                                submission.patientName || "tanpa nama"
+                              }`}
                             >
-                              {submission.status === "DRAFT" ? (
-                                <PencilIcon data-icon="inline-start" />
-                              ) : (
-                                <ArrowUpRightIcon data-icon="inline-start" />
-                              )}
+                              <PencilIcon data-icon="inline-start" />
                             </Button>
                             <Button
                               nativeButton={false}
@@ -261,6 +270,11 @@ export function SubmissionList({
                             >
                               <DownloadSimpleIcon data-icon="inline-start" />
                             </Button>
+                            <SubmissionDeleteButton
+                              submissionId={submission.id}
+                              patientName={submission.patientName}
+                              formTitle={submission.formVersion.form.title}
+                            />
                           </div>
                         </TableCell>
                       </TableRow>
