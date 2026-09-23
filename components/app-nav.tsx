@@ -6,6 +6,7 @@ import {
   TextboxIcon,
   SquaresFourIcon,
   NotepadIcon,
+  ChartBarIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 
@@ -27,6 +28,7 @@ export function AppNav({ isAdmin }: { isAdmin: boolean }) {
   const items = isAdmin
     ? [
         ...links,
+        { href: "/admin/reports", label: "Laporan", icon: ChartBarIcon },
         { href: "/admin/forms/new", label: "Builder", icon: TextboxIcon },
         { href: "/admin/users", label: "Pengguna", icon: UsersIcon },
       ]
