@@ -57,14 +57,15 @@ test("protected pages redirect signed-out visitors", async ({ page }) => {
   }
 });
 
-test("legacy URLs redirect into admin while preserving filters", async ({
+test("main submission routes do not redirect into admin", async ({
   request,
 }) => {
   const response = await request.get("/submissions?q=example", {
     maxRedirects: 0,
   });
-  expect(response.status()).toBe(308);
-  expect(response.headers().location).toBe("/admin/submissions?q=example");
+  expect(response.headers().location).toBe("/login");
+  expect(response.headers().location).not.toContain("/admin/submissions");
+
   const account = await request.get("/account", { maxRedirects: 0 });
   expect(account.headers().location).toBe("/admin/account");
 });

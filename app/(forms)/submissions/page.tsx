@@ -3,9 +3,11 @@ import { getActiveForms } from "@/lib/data/forms";
 import { getSubmissions } from "@/lib/data/submissions";
 import type { SubmissionFilters } from "@/lib/data/submissions";
 
-export default async function SubmissionsPage({
+export default async function StaffSubmissionsPage({
   searchParams,
-}: PageProps<"/admin/submissions">) {
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const params = await searchParams;
   const status: SubmissionFilters["status"] =
     params.status === "DRAFT" || params.status === "SUBMITTED"
@@ -19,13 +21,13 @@ export default async function SubmissionsPage({
     to: typeof params.to === "string" ? params.to : undefined,
   };
   const [submissions, forms] = await Promise.all([
-    getSubmissions(filters),
+    getSubmissions(filters, "staff"),
     getActiveForms(),
   ]);
 
   return (
     <SubmissionList
-      context="admin"
+      context="main"
       filters={filters}
       forms={forms}
       submissions={submissions}

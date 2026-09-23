@@ -177,7 +177,15 @@ export function FormFiller({
               Jawaban telah disimpan. Terima kasih telah melengkapi formulir.
             </CardDescription>
           </CardHeader>
-          <CardFooter>
+          <CardFooter className="flex-wrap gap-2">
+            <Button
+              nativeButton={false}
+              role="link"
+              variant="outline"
+              render={<Link href="/submissions" />}
+            >
+              Lihat riwayat
+            </Button>
             <Button nativeButton={false} role="link" render={<Link href="/" />}>
               Kembali ke formulir
             </Button>
@@ -188,48 +196,9 @@ export function FormFiller({
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-7xl items-start gap-6 p-4 md:p-8 xl:grid-cols-[220px_minmax(0,1fr)]">
-      <aside className="flex flex-col gap-4 xl:sticky xl:top-6">
-        <Button
-          className="h-8 px-0"
-          variant="ghost"
-          type="button"
-          onClick={() => router.push(admin ? "/admin/submissions" : "/")}
-        >
-          <ArrowLeftIcon data-icon="inline-start" /> Kembali
-        </Button>
-        <div className="flex flex-col gap-3 [&_h2]:text-lg [&_h2]:font-semibold">
-          <h2>{schema.shortTitle}</h2>
-        </div>
-        <div className="py-3">
-          <Progress value={progress}>
-            <ProgressLabel>Kelengkapan</ProgressLabel>
-            <ProgressValue>{() => `${progress}%`}</ProgressValue>
-          </Progress>
-        </div>
-        {!isContinuous ? (
-          <nav
-            aria-label="Bagian formulir"
-            className="hidden flex-col gap-1 xl:flex [&_a]:flex [&_a]:gap-3 [&_a]:rounded-md [&_a]:p-2 [&_a]:text-sm [&_a]:text-muted-foreground [&_a:hover]:bg-accent"
-          >
-            {schema.sections.map((section, index) => (
-              <a href={`#${section.id}`} key={section.id}>
-                <span>{(index + 1).toString().padStart(2, "0")}</span>
-                {section.title}
-              </a>
-            ))}
-          </nav>
-        ) : null}
-        <p className="flex items-start gap-2 text-xs text-muted-foreground">
-          <CheckIcon size={16} /> Tanda * wajib dilengkapi sebelum dikirim.
-        </p>
-      </aside>
-
+    <div className="mx-auto w-full max-w-3xl items-start gap-6 p-4 md:p-8 xl:grid-cols-[220px_minmax(0,1fr)]">
       <div className="min-w-0 flex flex-col gap-6">
         <header className="flex flex-col gap-2 [&_h1]:text-3xl [&_h1]:font-semibold [&>p]:text-sm [&>p]:text-muted-foreground">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">
-            Formulir klinis
-          </p>
           <h1>{schema.title}</h1>
           <p>{schema.description}</p>
         </header>

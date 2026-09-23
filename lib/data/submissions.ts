@@ -14,8 +14,13 @@ export type SubmissionFilters = {
   to?: string;
 };
 
-export async function getSubmissions(filters: SubmissionFilters = {}) {
-  await requireAdmin();
+export type SubmissionAccess = "admin" | "staff";
+
+export async function getSubmissions(
+  filters: SubmissionFilters = {},
+  access: SubmissionAccess = "admin",
+) {
+  const staff = await (access === "admin" ? requireAdmin() : requireStaff());
 
   const createdAt = {
     ...(filters.from ? { gte: new Date(`${filters.from}T00:00:00`) } : {}),
@@ -24,6 +29,9 @@ export async function getSubmissions(filters: SubmissionFilters = {}) {
 
   return db.submission.findMany({
     where: {
+      ...(access === "staff" && staff.role !== "ADMIN"
+        ? { createdById: staff.id }
+        : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.formId ? { formVersion: { formId: filters.formId } } : {}),
       ...(Object.keys(createdAt).length ? { createdAt } : {}),
@@ -65,41 +73,45 @@ export async function getSubmissions(filters: SubmissionFilters = {}) {
 export async function getSubmission(
   id: string,
   mode: "view" | "edit" = "view",
+  access: SubmissionAccess = mode === "edit" ? "staff" : "admin",
 ) {
-  const staff = await (mode === "edit" ? requireStaff() : requireAdmin());
-  const submission = await db.submission.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      status: true,
-      patientName: true,
-      medicalRecordNumber: true,
-      room: true,
-      answersJson: true,
-      createdAt: true,
-      updatedAt: true,
-      submittedAt: true,
-      createdById: true,
-      createdBy: { select: { name: true } },
-      updatedBy: { select: { name: true } },
-      formVersion: {
-        select: {
-          id: true,
-          version: true,
-          schemaJson: true,
-          form: {
-            select: { id: true, slug: true, title: true, category: true },
+  const [staff, submission] = await Promise.all([
+    access === "admin" ? requireAdmin() : requireStaff(),
+    db.submission.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        patientName: true,
+        medicalRecordNumber: true,
+        room: true,
+        answersJson: true,
+        createdAt: true,
+        updatedAt: true,
+        submittedAt: true,
+        createdById: true,
+        createdBy: { select: { name: true } },
+        updatedBy: { select: { name: true } },
+        formVersion: {
+          select: {
+            id: true,
+            version: true,
+            schemaJson: true,
+            form: {
+              select: { id: true, slug: true, title: true, category: true },
+            },
           },
         },
       },
-    },
-  });
+    }),
+  ]);
 
   if (!submission) notFound();
   if (
-    mode === "edit" &&
-    (submission.status !== "DRAFT" ||
-      (submission.createdById !== staff.id && staff.role !== "ADMIN"))
+    (access === "staff" &&
+      staff.role !== "ADMIN" &&
+      submission.createdById !== staff.id) ||
+    (mode === "edit" && submission.status !== "DRAFT")
   ) {
     notFound();
   }
@@ -113,8 +125,16 @@ export async function getSubmission(
 export async function recordSubmissionAccess(
   submissionId: string,
   action: "VIEW" | "PRINT",
+  access: SubmissionAccess = "admin",
 ) {
-  const staff = await requireAdmin();
+  const staff = await (access === "admin" ? requireAdmin() : requireStaff());
+  if (access === "staff" && staff.role !== "ADMIN") {
+    const submission = await db.submission.findUnique({
+      where: { id: submissionId },
+      select: { createdById: true },
+    });
+    if (!submission || submission.createdById !== staff.id) notFound();
+  }
   await db.auditEvent.create({
     data: {
       actorId: staff.id,
