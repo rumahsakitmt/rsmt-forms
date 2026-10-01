@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { parseFormSchema } from "@/lib/forms/validation";
-import { requireStaff } from "@/lib/session";
+import { requireAdmin, requireStaff } from "@/lib/session";
 
 export async function getActiveForms() {
   await requireStaff();
@@ -52,5 +52,25 @@ export async function getFormDefinition(slug: string) {
       ...form.currentVersion,
       schema: parseFormSchema(form.currentVersion.schemaJson),
     },
+  };
+}
+
+export async function getFormForEditing(formId: string) {
+  await requireAdmin();
+  const form = await db.form.findUnique({
+    where: { id: formId },
+    select: {
+      id: true,
+      category: true,
+      currentVersion: { select: { version: true, schemaJson: true } },
+    },
+  });
+
+  if (!form?.currentVersion) notFound();
+  return {
+    id: form.id,
+    category: form.category,
+    version: form.currentVersion.version,
+    schema: parseFormSchema(form.currentVersion.schemaJson),
   };
 }

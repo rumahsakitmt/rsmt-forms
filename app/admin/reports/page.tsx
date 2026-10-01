@@ -7,6 +7,7 @@ import {
 import { format } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 
+import { FormManagementActions } from "@/components/admin/form-management-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,11 +62,19 @@ export default async function ReportsPage() {
                   <div><dt className="text-xs text-muted-foreground">Terakhir</dt><dd className="mt-1 text-sm font-medium">{form.latestSubmissionAt ? format(form.latestSubmissionAt, "dd MMM yy", { locale: idLocale }) : "—"}</dd></div>
                 </dl>
               </CardContent>
-              <CardFooter className="justify-between border-t bg-muted/20">
+              <CardFooter className="flex-wrap justify-between gap-2 border-t bg-muted/20">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground"><ClockCounterClockwiseIcon /> Semua versi</span>
-                <Button nativeButton={false} role="link" variant="outline" render={<Link href={`/admin/reports/${form.id}`} />}>
-                  Buka laporan <ArrowRightIcon data-icon="inline-end" />
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <FormManagementActions
+                    formId={form.id}
+                    formTitle={form.title}
+                    isActive={form.isActive}
+                    submissionCount={form.submitted + form.drafts}
+                  />
+                  <Button nativeButton={false} role="link" variant="outline" render={<Link href={`/admin/reports/${form.id}`} />}>
+                    Buka laporan <ArrowRightIcon data-icon="inline-end" />
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}

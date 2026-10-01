@@ -56,7 +56,7 @@ import {
   TextTIcon,
 } from "@phosphor-icons/react";
 
-import { createFormAction } from "@/app/actions/forms";
+import { createFormAction, updateFormAction } from "@/app/actions/forms";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -275,9 +275,19 @@ function useReducedMotionPreference() {
   return reduced;
 }
 
-export function FormBuilder() {
+type SavedDraft = BuilderState & { baseVersion?: number };
+
+export function FormBuilder({
+  initial = initialState,
+  editing,
+}: {
+  initial?: BuilderState;
+  editing?: { formId: string; version: number };
+} = {}) {
   const router = useRouter();
-  const [builder, setBuilder] = useState<BuilderState>(initialState);
+  const editingVersion = editing?.version;
+  const draftKey = editing ? `${DRAFT_KEY}:${editing.formId}` : DRAFT_KEY;
+  const [builder, setBuilder] = useState<BuilderState>(initial);
   const [selection, setSelection] = useState<Selection>({ kind: "form" });
   const [mode, setMode] = useState<"build" | "preview">("build");
   const [activeDrag, setActiveDrag] = useState<DragItemData | null>(null);
@@ -293,21 +303,26 @@ export function FormBuilder() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      const saved = window.localStorage.getItem(DRAFT_KEY);
+      const saved = window.localStorage.getItem(draftKey);
       if (!saved) return;
       try {
-        setBuilder(JSON.parse(saved) as BuilderState);
+        const { baseVersion, ...draft } = JSON.parse(saved) as SavedDraft;
+        if (editingVersion !== undefined && baseVersion !== editingVersion) {
+          window.localStorage.removeItem(draftKey);
+          return;
+        }
+        setBuilder(draft);
         showBuilderToast(
           "Draft dipulihkan",
           "Draft lokal dari perangkat ini berhasil dimuat.",
           "info",
         );
       } catch {
-        window.localStorage.removeItem(DRAFT_KEY);
+        window.localStorage.removeItem(draftKey);
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [draftKey, editingVersion]);
 
   const selectedSection = useMemo(() => {
     if (selection.kind === "form" || selection.kind === "identity") return null;
@@ -825,7 +840,13 @@ export function FormBuilder() {
   }
 
   function saveDraft() {
-    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(builder));
+    window.localStorage.setItem(
+      draftKey,
+      JSON.stringify({
+        ...builder,
+        baseVersion: editing?.version,
+      } satisfies SavedDraft),
+    );
     showBuilderToast(
       "Draft tersimpan",
       "Draft disimpan di perangkat ini.",
@@ -834,15 +855,22 @@ export function FormBuilder() {
 
   function publish() {
     startTransition(async () => {
-      const result = await createFormAction(builder);
+      const result = editing
+        ? await updateFormAction({
+            ...builder,
+            formId: editing.formId,
+            baseVersion: editing.version,
+          })
+        : await createFormAction(builder);
       showBuilderToast(
         result.success ? "Formulir diterbitkan" : "Gagal menerbitkan formulir",
         result.message,
         result.success ? "success" : "error",
       );
       if (result.success) {
-        window.localStorage.removeItem(DRAFT_KEY);
-        router.push("/");
+        window.localStorage.removeItem(draftKey);
+        router.push(editing ? `/admin/reports/${editing.formId}` : "/");
+        if (editing) router.refresh();
       }
     });
   }
@@ -861,7 +889,9 @@ export function FormBuilder() {
           </Button>
           <div>
             <span className="text-xs text-muted-foreground">
-              Studio formulir
+              {editing
+                ? `Edit formulir · versi ${editing.version}`
+                : "Studio formulir"}
             </span>
             <Input
               aria-label="Judul formulir singkat"
@@ -906,7 +936,8 @@ export function FormBuilder() {
               "Menerbitkan…"
             ) : (
               <>
-                <RocketIcon data-icon="inline-start" /> Terbitkan
+                <RocketIcon data-icon="inline-start" />{" "}
+                {editing ? "Terbitkan versi baru" : "Terbitkan"}
               </>
             )}
           </Button>
@@ -1341,10 +1372,7 @@ export function FormBuilder() {
                               const options = selectedField.options.map(
                                 (item, optionIndex) =>
                                   optionIndex === index
-                                    ? {
-                                        value: `pilihan_${optionIndex + 1}`,
-                                        label: event.target.value,
-                                      }
+                                    ? { ...item, label: event.target.value }
                                     : item,
                               );
                               updateField(
@@ -1376,7 +1404,7 @@ export function FormBuilder() {
                             options: [
                               ...selectedField.options,
                               {
-                                value: `pilihan_${selectedField.options.length + 1}`,
+                                value: uniqueId("pilihan"),
                                 label: `Pilihan ${selectedField.options.length + 1}`,
                               },
                             ],

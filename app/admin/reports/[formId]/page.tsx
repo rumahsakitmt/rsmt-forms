@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeftIcon, CalendarBlankIcon } from "@phosphor-icons/react/dist/ssr";
 
+import { FormManagementActions } from "@/components/admin/form-management-actions";
 import {
   AssessmentDistribution,
   AssessmentExecutiveSummary,
@@ -33,11 +34,21 @@ export default async function FormReportPage({
       </Link>
 
       <header className="flex flex-col gap-3 border-b pb-6 [&_h1]:text-3xl [&_h1]:font-semibold [&_h1]:tracking-tight">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{report.category}</Badge>
-          <Badge variant="secondary">
-            Versi aktif {report.currentVersion.version}
-          </Badge>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{report.category}</Badge>
+            <Badge variant="secondary">
+              Versi aktif {report.currentVersion.version}
+            </Badge>
+            {!report.isActive ? <Badge variant="secondary">Nonaktif</Badge> : null}
+          </div>
+          <FormManagementActions
+            formId={report.id}
+            formTitle={report.title}
+            isActive={report.isActive}
+            submissionCount={report.totalSubmissions}
+            redirectTo="/admin/reports"
+          />
         </div>
         <h1>{report.title}</h1>
         <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">

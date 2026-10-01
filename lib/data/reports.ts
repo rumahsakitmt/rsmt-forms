@@ -155,37 +155,41 @@ export async function getFormAssessmentReport(
 ) {
   await requireAdmin();
   const period = reportPeriod(filters);
-  const form = await db.form.findUnique({
-    where: { id: formId },
-    select: {
-      id: true,
-      slug: true,
-      title: true,
-      description: true,
-      category: true,
-      currentVersion: { select: { schemaJson: true, version: true } },
-      versions: {
-        select: {
-          submissions: {
-            where: {
-              status: "SUBMITTED",
-              submittedAt: { gte: period.previousFrom, lte: period.to },
-            },
-            orderBy: { submittedAt: "desc" },
-            select: {
-              id: true,
-              patientName: true,
-              medicalRecordNumber: true,
-              room: true,
-              answersJson: true,
-              submittedAt: true,
-              createdBy: { select: { name: true } },
+  const [form, totalSubmissions] = await Promise.all([
+    db.form.findUnique({
+      where: { id: formId },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        category: true,
+        isActive: true,
+        currentVersion: { select: { schemaJson: true, version: true } },
+        versions: {
+          select: {
+            submissions: {
+              where: {
+                status: "SUBMITTED",
+                submittedAt: { gte: period.previousFrom, lte: period.to },
+              },
+              orderBy: { submittedAt: "desc" },
+              select: {
+                id: true,
+                patientName: true,
+                medicalRecordNumber: true,
+                room: true,
+                answersJson: true,
+                submittedAt: true,
+                createdBy: { select: { name: true } },
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    db.submission.count({ where: { formVersion: { formId } } }),
+  ]);
 
   if (!form?.currentVersion) notFound();
   const currentVersion = form.currentVersion;
@@ -232,6 +236,7 @@ export async function getFormAssessmentReport(
     ...form,
     currentVersion,
     schema,
+    totalSubmissions,
     submissions,
     summary,
     previousSummary,
