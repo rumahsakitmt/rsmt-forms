@@ -134,6 +134,7 @@ model Submission {
   patientName         String
   medicalRecordNumber String
   room                String
+  patientDetailsJson  Json             @default("{}")
   answersJson         Json
   createdById         String
   updatedById         String

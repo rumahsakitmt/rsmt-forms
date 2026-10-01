@@ -85,6 +85,7 @@ export async function getSubmission(
         patientName: true,
         medicalRecordNumber: true,
         room: true,
+        patientDetailsJson: true,
         answersJson: true,
         createdAt: true,
         updatedAt: true,
@@ -117,6 +118,7 @@ export async function getSubmission(
 
   return {
     ...submission,
+    patientDetails: parsePatientDetails(submission.patientDetailsJson),
     schema: parseFormSchema(submission.formVersion.schemaJson),
   };
 }
@@ -158,4 +160,13 @@ export async function getSubmissionStats() {
     }),
   ]);
   return { drafts, submitted, today };
+}
+
+function parsePatientDetails(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
 }

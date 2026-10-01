@@ -20,6 +20,7 @@ export default async function EditSubmissionPage({
           patientName: submission.patientName,
           medicalRecordNumber: submission.medicalRecordNumber,
           room: submission.room,
+          details: submission.patientDetails,
         },
         answers: submission.answersJson as FormAnswers,
       }}

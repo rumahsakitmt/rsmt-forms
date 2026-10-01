@@ -5,6 +5,7 @@ import type {
   FormAnswers,
   FormField,
   FormSchema,
+  IdentityField,
   PatientContext,
   SubmissionMode,
   ValidationResult,
@@ -59,12 +60,27 @@ const formFieldSchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+const identityFieldSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  type: z.enum(["text", "date", "number"]),
+  required: z.boolean().optional(),
+  placeholder: z.string().optional(),
+});
+
 export const formSchemaParser = z.object({
   schemaVersion: z.literal(1),
   layout: z.enum(["sectioned", "continuous"]).optional(),
   title: z.string().min(1),
   shortTitle: z.string().min(1),
   description: z.string().min(1),
+  identityFields: z
+    .array(identityFieldSchema)
+    .refine(
+      (fields) => new Set(fields.map((field) => field.id)).size === fields.length,
+      "ID identitas harus unik.",
+    )
+    .optional(),
   sections: z.array(
     z.object({
       id: z.string().min(1),
@@ -80,7 +96,37 @@ const patientContextParser = z.object({
   patientName: z.string().trim().max(120),
   medicalRecordNumber: z.string().trim().max(50),
   room: z.string().trim().max(80),
+  details: z.record(z.string(), z.string().trim().max(200)).optional(),
 });
+
+function validateIdentityValue(field: IdentityField, value: string) {
+  if (!value) return null;
+  if (field.type === "date") {
+    const date = new Date(`${value}T00:00:00Z`);
+    return /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+      !Number.isNaN(date.getTime()) &&
+      date.toISOString().startsWith(value)
+      ? null
+      : "Tanggal tidak valid.";
+  }
+  if (field.type === "number") {
+    return /^-?\d+([.,]\d+)?$/.test(value) ? null : "Masukkan angka.";
+  }
+  return null;
+}
+
+/** Keeps only details declared by the schema, trimmed. */
+export function pickPatientDetails(
+  schema: FormSchema,
+  details: Record<string, string> | undefined,
+) {
+  return Object.fromEntries(
+    (schema.identityFields ?? []).map((field) => [
+      field.id,
+      (details?.[field.id] ?? "").trim(),
+    ]),
+  );
+}
 
 function isEmpty(value: AnswerValue | undefined) {
   if (value == null) return true;
@@ -173,6 +219,17 @@ export function validateSubmission(
       errors.medicalRecordNumber = "Nomor rekam medis wajib diisi.";
     }
     if (!patient.room.trim()) errors.room = "Ruangan wajib diisi.";
+  }
+
+  for (const field of schema.identityFields ?? []) {
+    const value = (patient.details?.[field.id] ?? "").trim();
+    const key = `identity:${field.id}`;
+    if (mode === "submit" && field.required && !value) {
+      errors[key] = `${field.label} wajib diisi.`;
+      continue;
+    }
+    const valueError = validateIdentityValue(field, value);
+    if (valueError) errors[key] = valueError;
   }
 
   for (const section of schema.sections) {

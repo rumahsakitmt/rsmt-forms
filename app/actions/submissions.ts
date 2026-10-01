@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import type { FormAnswers, PatientContext, SubmissionMode } from "@/lib/forms/types";
-import { parseFormSchema, validateSubmission } from "@/lib/forms/validation";
+import {
+  parseFormSchema,
+  pickPatientDetails,
+  validateSubmission,
+} from "@/lib/forms/validation";
 import { requireStaff } from "@/lib/session";
 
 type SaveSubmissionInput = {
@@ -72,6 +76,7 @@ export async function saveSubmissionAction(
     patientName: input.patient.patientName.trim(),
     medicalRecordNumber: input.patient.medicalRecordNumber.trim(),
     room: input.patient.room.trim(),
+    details: pickPatientDetails(schema, input.patient.details),
   };
   const effectiveMode =
     existing?.status === "SUBMITTED" ? "submit" : input.mode;
@@ -105,6 +110,7 @@ export async function saveSubmissionAction(
           patientName: patient.patientName,
           medicalRecordNumber: patient.medicalRecordNumber,
           room: patient.room,
+          patientDetailsJson: patient.details,
           answersJson,
           status,
           updatedById: staff.id,
@@ -132,6 +138,7 @@ export async function saveSubmissionAction(
         patientName: patient.patientName,
         medicalRecordNumber: patient.medicalRecordNumber,
         room: patient.room,
+        patientDetailsJson: patient.details,
         answersJson,
         status,
         createdById: staff.id,

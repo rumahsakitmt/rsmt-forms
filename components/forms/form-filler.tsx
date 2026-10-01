@@ -98,15 +98,38 @@ export function FormFiller({
     const completed = requiredFields.filter((field) =>
       hasAnswer(answers[field.id]),
     ).length;
-    const patientCompleted = Object.values(patient).filter((value) =>
-      value.trim(),
-    ).length;
-    return Math.round(
-      ((completed + patientCompleted) / (requiredFields.length + 3)) * 100,
+    const requiredIdentity = (schema.identityFields ?? []).filter(
+      (field) => field.required,
     );
-  }, [answers, patient, schema.sections]);
+    const patientCompleted =
+      [patient.patientName, patient.medicalRecordNumber, patient.room].filter(
+        (value) => value.trim(),
+      ).length +
+      requiredIdentity.filter((field) => patient.details?.[field.id]?.trim())
+        .length;
+    return Math.round(
+      ((completed + patientCompleted) /
+        (requiredFields.length + 3 + requiredIdentity.length)) *
+        100,
+    );
+  }, [answers, patient, schema.identityFields, schema.sections]);
 
-  function updatePatient(key: keyof PatientContext, value: string) {
+  function updatePatientDetail(fieldId: string, value: string) {
+    setPatient((current) => ({
+      ...current,
+      details: { ...current.details, [fieldId]: value },
+    }));
+    setErrors((current) => {
+      const next = { ...current };
+      delete next[`identity:${fieldId}`];
+      return next;
+    });
+  }
+
+  function updatePatient(
+    key: Exclude<keyof PatientContext, "details">,
+    value: string,
+  ) {
     setPatient((current) => ({ ...current, [key]: value }));
     setErrors((current) => {
       const next = { ...current };
@@ -257,6 +280,30 @@ export function FormFiller({
               />
               <FieldError>{errors.room}</FieldError>
             </Field>
+            {schema.identityFields?.map((field) => {
+              const errorKey = `identity:${field.id}`;
+              const inputId = `identity-${field.id}`;
+              return (
+                <Field data-invalid={Boolean(errors[errorKey])} key={field.id}>
+                  <FieldLabel htmlFor={inputId}>
+                    {field.label}
+                    {field.required ? " *" : ""}
+                  </FieldLabel>
+                  <Input
+                    aria-invalid={Boolean(errors[errorKey])}
+                    id={inputId}
+                    inputMode={field.type === "number" ? "decimal" : undefined}
+                    placeholder={field.placeholder}
+                    type={field.type === "date" ? "date" : "text"}
+                    value={patient.details?.[field.id] ?? ""}
+                    onChange={(event) =>
+                      updatePatientDetail(field.id, event.target.value)
+                    }
+                  />
+                  <FieldError>{errors[errorKey]}</FieldError>
+                </Field>
+              );
+            })}
           </FieldGroup>
         </section>
 

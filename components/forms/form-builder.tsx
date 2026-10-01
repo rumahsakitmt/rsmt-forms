@@ -51,6 +51,7 @@ import {
   PlusIcon,
   RocketIcon,
   GearIcon,
+  IdentificationCardIcon,
   TrashIcon,
   TextTIcon,
 } from "@phosphor-icons/react";
@@ -73,7 +74,13 @@ import {
 } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import type { FormField, FormSchema, FormSection } from "@/lib/forms/types";
+import type {
+  FormField,
+  FormSchema,
+  FormSection,
+  IdentityField,
+  IdentityFieldType,
+} from "@/lib/forms/types";
 
 type BuilderState = {
   category: string;
@@ -82,6 +89,7 @@ type BuilderState = {
 
 type Selection =
   | { kind: "form" }
+  | { kind: "identity" }
   | { kind: "section"; sectionId: string }
   | { kind: "field"; sectionId: string; fieldId: string };
 
@@ -168,6 +176,14 @@ const palette: Array<{
     icon: CheckSquareIcon,
   },
 ];
+
+const defaultIdentityLabels = ["Nama pasien", "No. rekam medis", "Ruangan"];
+
+const identityTypeLabels: Record<IdentityFieldType, string> = {
+  text: "Teks",
+  date: "Tanggal",
+  number: "Angka",
+};
 
 function uniqueId(prefix: string) {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
@@ -294,7 +310,7 @@ export function FormBuilder() {
   }, []);
 
   const selectedSection = useMemo(() => {
-    if (selection.kind === "form") return null;
+    if (selection.kind === "form" || selection.kind === "identity") return null;
     return (
       builder.schema.sections.find(
         (section) => section.id === selection.sectionId,
@@ -384,6 +400,36 @@ export function FormBuilder() {
     }));
   }
 
+  function updateIdentityFields(
+    update: (fields: IdentityField[]) => IdentityField[],
+  ) {
+    setBuilder((current) => ({
+      ...current,
+      schema: {
+        ...current.schema,
+        identityFields: update(current.schema.identityFields ?? []),
+      },
+    }));
+  }
+
+  function addIdentityField() {
+    updateIdentityFields((fields) => [
+      ...fields,
+      {
+        id: uniqueId("identity"),
+        label: "Tanggal lahir",
+        type: "date",
+        required: false,
+      },
+    ]);
+  }
+
+  function updateIdentityField(id: string, patch: Partial<IdentityField>) {
+    updateIdentityFields((fields) =>
+      fields.map((field) => (field.id === id ? { ...field, ...patch } : field)),
+    );
+  }
+
   function addField(
     type: AddableFieldType,
     targetSectionId?: string,
@@ -393,7 +439,7 @@ export function FormBuilder() {
       ? builder.schema.sections.find(
           (section) => section.id === targetSectionId,
         )
-      : selection.kind === "form"
+      : selection.kind === "form" || selection.kind === "identity"
         ? builder.schema.sections.at(-1)
         : builder.schema.sections.find(
             (section) => section.id === selection.sectionId,
@@ -939,6 +985,47 @@ export function FormBuilder() {
                 </CardHeader>
               </Card>
 
+              <Card
+                className={cn(
+                  "relative cursor-pointer transition-[box-shadow,transform] duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] has-focus-visible:ring-2 has-focus-visible:ring-ring active:scale-[0.99] motion-reduce:transform-none motion-reduce:transition-none",
+                  selection.kind === "identity" && "ring-2 ring-ring",
+                )}
+                size="sm"
+              >
+                <button
+                  aria-label="Pilih pengaturan identitas pasien"
+                  className="absolute inset-0 outline-none"
+                  onClick={() => setSelection({ kind: "identity" })}
+                  type="button"
+                />
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <IdentificationCardIcon /> Identitas pasien
+                  </CardTitle>
+                  <CardDescription>
+                    Klik untuk menambah informasi identitas lain.
+                  </CardDescription>
+                  <CardAction>
+                    <Badge variant="secondary">
+                      {3 + (builder.schema.identityFields?.length ?? 0)} isian
+                    </Badge>
+                  </CardAction>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  {defaultIdentityLabels.map((label) => (
+                    <Badge key={label} variant="outline">
+                      {label}
+                    </Badge>
+                  ))}
+                  {builder.schema.identityFields?.map((field) => (
+                    <Badge key={field.id} variant="outline">
+                      {field.label || "Tanpa label"}
+                      {field.required ? " *" : ""}
+                    </Badge>
+                  ))}
+                </CardContent>
+              </Card>
+
               <SortableContext
                 items={builder.schema.sections.map((section) =>
                   sectionDragId(section.id),
@@ -990,9 +1077,11 @@ export function FormBuilder() {
                 <CardDescription>
                   {selection.kind === "form"
                     ? "Atur identitas dan struktur formulir"
-                    : selection.kind === "section"
-                      ? "Atur bagian yang sedang dipilih"
-                      : "Atur pertanyaan yang sedang dipilih"}
+                    : selection.kind === "identity"
+                      ? "Atur informasi identitas pasien"
+                      : selection.kind === "section"
+                        ? "Atur bagian yang sedang dipilih"
+                        : "Atur pertanyaan yang sedang dipilih"}
                 </CardDescription>
               </CardHeader>
               {selection.kind === "form" ? (
@@ -1059,6 +1148,102 @@ export function FormBuilder() {
                       }
                     />
                   </InspectorField>
+                </FieldGroup>
+              ) : null}
+
+              {selection.kind === "identity" ? (
+                <FieldGroup className="p-4">
+                  <div className="flex flex-col gap-2">
+                    <span className="text-sm font-medium">Isian bawaan</span>
+                    <div className="flex flex-wrap gap-2">
+                      {defaultIdentityLabels.map((label) => (
+                        <Badge key={label} variant="outline">
+                          {label} *
+                        </Badge>
+                      ))}
+                    </div>
+                    <small className="text-xs text-muted-foreground">
+                      Selalu tersedia di setiap formulir.
+                    </small>
+                  </div>
+                  {builder.schema.identityFields?.map((field, index) => (
+                    <div
+                      className="flex flex-col gap-3 rounded-lg border p-3"
+                      key={field.id}
+                    >
+                      <InspectorField label={`Label isian ${index + 1}`}>
+                        <Input
+                          value={field.label}
+                          onChange={(event) =>
+                            updateIdentityField(field.id, {
+                              label: event.target.value,
+                            })
+                          }
+                        />
+                      </InspectorField>
+                      <InspectorField label="Jenis isian">
+                        <NativeSelect
+                          className="w-full"
+                          value={field.type}
+                          onChange={(event) =>
+                            updateIdentityField(field.id, {
+                              type: event.target.value as IdentityFieldType,
+                            })
+                          }
+                        >
+                          {Object.entries(identityTypeLabels).map(
+                            ([value, label]) => (
+                              <NativeSelectOption key={value} value={value}>
+                                {label}
+                              </NativeSelectOption>
+                            ),
+                          )}
+                        </NativeSelect>
+                      </InspectorField>
+                      {field.type !== "date" ? (
+                        <InspectorField label="Teks placeholder">
+                          <Input
+                            value={field.placeholder || ""}
+                            onChange={(event) =>
+                              updateIdentityField(field.id, {
+                                placeholder: event.target.value,
+                              })
+                            }
+                          />
+                        </InspectorField>
+                      ) : null}
+                      <label className="flex items-center justify-between gap-3 [&>span]:flex [&>span]:flex-col [&_small]:text-xs [&_small]:text-muted-foreground">
+                        <span>
+                          <strong>Wajib diisi</strong>
+                          <small>Harus diisi sebelum formulir dikirim</small>
+                        </span>
+                        <Switch
+                          checked={field.required || false}
+                          onCheckedChange={(checked) =>
+                            updateIdentityField(field.id, { required: checked })
+                          }
+                        />
+                      </label>
+                      <Button
+                        variant="outline"
+                        onClick={() =>
+                          updateIdentityFields((fields) =>
+                            fields.filter((item) => item.id !== field.id),
+                          )
+                        }
+                        type="button"
+                      >
+                        <TrashIcon data-icon="inline-start" /> Hapus isian
+                      </Button>
+                    </div>
+                  ))}
+                  <Button
+                    variant="outline"
+                    onClick={addIdentityField}
+                    type="button"
+                  >
+                    <PlusIcon data-icon="inline-start" /> Tambah isian identitas
+                  </Button>
                 </FieldGroup>
               ) : null}
 
@@ -1805,6 +1990,12 @@ function Preview({ builder }: { builder: BuilderState }) {
           <span>Nama pasien</span>
           <span>No. rekam medis</span>
           <span>Ruangan</span>
+          {builder.schema.identityFields?.map((field) => (
+            <span key={field.id}>
+              {field.label}
+              {field.required ? " *" : ""}
+            </span>
+          ))}
         </div>
         {builder.schema.sections.map((section) => (
           <section key={section.id}>

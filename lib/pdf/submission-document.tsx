@@ -1,5 +1,6 @@
 import { Document, Page, View, Fixed } from "@formepdf/react";
 import { Text } from "@/components/pdf/text/text";
+import { formatIdentityValue } from "@/lib/forms/identity";
 import type { FormAnswers, FormField, FormSchema } from "@/lib/forms/types";
 import { isFieldVisible } from "@/lib/forms/validation";
 
@@ -42,6 +43,7 @@ export type SubmissionDocumentData = {
   patientName: string;
   medicalRecordNumber: string;
   room: string;
+  patientDetails?: Record<string, string>;
   updatedAt: Date;
   submittedAt: Date | null;
   createdBy: { name: string };
@@ -142,6 +144,10 @@ export function SubmissionDocument({
             ["Nama Pasien", s.patientName],
             ["Ruangan", s.room],
             ["No. CM", s.medicalRecordNumber],
+            ...(s.schema.identityFields ?? []).map((field) => [
+              field.label,
+              formatIdentityValue(field, s.patientDetails?.[field.id]),
+            ]),
           ].map(([label, value]) => (
             <View key={label} style={{ flexDirection: "row", marginBottom: 2 }}>
               <Text noMargin weight="bold" style={{ fontSize: 9, width: 74 }}>

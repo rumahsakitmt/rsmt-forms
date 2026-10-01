@@ -57,12 +57,23 @@ export type FormSection = {
   fields: FormField[];
 };
 
+export type IdentityFieldType = "text" | "date" | "number";
+
+export type IdentityField = {
+  id: string;
+  label: string;
+  type: IdentityFieldType;
+  required?: boolean;
+  placeholder?: string;
+};
+
 export type FormSchema = {
   schemaVersion: 1;
   layout?: "sectioned" | "continuous";
   title: string;
   shortTitle: string;
   description: string;
+  identityFields?: IdentityField[];
   sections: FormSection[];
 };
 
@@ -73,6 +84,7 @@ export type PatientContext = {
   patientName: string;
   medicalRecordNumber: string;
   room: string;
+  details?: Record<string, string>;
 };
 
 export type SubmissionMode = "draft" | "submit";

@@ -12,6 +12,7 @@ import { AnswersView } from "@/components/forms/answers-view";
 import { SubmissionDeleteButton } from "@/components/submissions/submission-delete-button";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { formatIdentityValue } from "@/lib/forms/identity";
 import type { FormAnswers, FormSchema } from "@/lib/forms/types";
 
 type SubmissionDetailProps = {
@@ -21,6 +22,7 @@ type SubmissionDetailProps = {
     patientName: string;
     medicalRecordNumber: string;
     room: string;
+    patientDetails: Record<string, string>;
     answersJson: unknown;
     updatedAt: Date;
     submittedAt: Date | null;
@@ -122,6 +124,17 @@ export function SubmissionDetail({ submission, context }: SubmissionDetailProps)
             <span>Ruangan</span>
             <strong>{submission.room || "—"}</strong>
           </div>
+          {submission.schema.identityFields?.map((field) => (
+            <div key={field.id}>
+              <span>{field.label}</span>
+              <strong>
+                {formatIdentityValue(
+                  field,
+                  submission.patientDetails[field.id],
+                ) || "—"}
+              </strong>
+            </div>
+          ))}
           <div>
             <span>Tanggal</span>
             <strong>
